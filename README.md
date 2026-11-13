@@ -8,6 +8,10 @@ Students act as SOC analysts. They investigate a simulated **password-spraying**
 
 ---
 
+## 👉 Start here: [Step-by-Step Lab Guide](docs/STEP-BY-STEP.md)
+
+Follow the guide from Step 0 to Step 7. It tells you exactly what to click and what to write down.
+
 ## Quick start (for students)
 
 | What | Where |
@@ -15,6 +19,7 @@ Students act as SOC analysts. They investigate a simulated **password-spraying**
 | 🔎 **Browser log viewer** (no install, works on any device) | **https://tsuyoiman.github.io/cybersec-lab4-credential-attack/** (or open `docs/index.html` offline) |
 | 📄 Log file (CSV) | [`data/auth_logs.csv`](data/auth_logs.csv) |
 | 🌐 Network capture | [`data/network_capture.pcap`](data/network_capture.pcap) (open in Wireshark) |
+| 🪜 **Step-by-step guide** | [`docs/STEP-BY-STEP.md`](docs/STEP-BY-STEP.md) |
 | 📝 Worksheet | [`docs/student-worksheet.md`](docs/student-worksheet.md) |
 | 📚 Cheat sheet | [`docs/cheat-sheet.md`](docs/cheat-sheet.md) |
 | 🧾 Report template | [`docs/report-template.md`](docs/report-template.md) |
@@ -49,7 +54,7 @@ No server, VM, or internet connection is required once the files are downloaded.
 | 5 | Write incident report + recommendations | 15 min |
 | 6 | Debrief | 5 min |
 
-Full teaching notes: [`docs/instructor-guide.md`](docs/instructor-guide.md)
+Student walkthrough: [`docs/STEP-BY-STEP.md`](docs/STEP-BY-STEP.md) · Teaching notes: [`docs/instructor-guide.md`](docs/instructor-guide.md)
 
 ## Learning outcomes
 
@@ -72,6 +77,7 @@ By the end of the lab, students can:
 │   └── network_capture.pcap   ← matching network traffic
 ├── docs/
 │   ├── index.html             ← browser log viewer (works offline too)
+│   ├── STEP-BY-STEP.md        ← student walkthrough, Step 0 → Step 7
 │   ├── instructor-guide.md
 │   ├── student-worksheet.md
 │   ├── cheat-sheet.md
