@@ -11,7 +11,7 @@
 | 🎯 **Level** | Beginner / Security+ candidates |
 | 📥 **Lab files** | `git clone https://github.com/Tsuyoiman/cybersec-lab4-credential-attack.git` (or **Code → Download ZIP**) |
 | 🛡️ **SIEM console** | **https://tsuyoiman.github.io/cybersec-lab4-credential-attack/** |
-| ✅ **Safe** | All data is **synthetic**: no real attack, no malware, no real users or passwords, no server needed |
+| ✅ **Safe** | All data is **synthetic**: *Meridian Logistics* and its employees are **fictional**. No real attack, no malware, no real passwords, no server needed |
 
 ---
 
@@ -63,7 +63,7 @@ If you only have five minutes before class:
 
 ### 2.1 The story
 
-On the night of **12 November 2026**, an attacker at IP **203.0.113.77** tried a few common passwords against **many** accounts at the company `corp.local` (**password spraying**). One user, **j.tan**, had a weak password, so the attacker **got in** and then took **remote control** of the computer (Remote Desktop). Along the way, four **admin accounts were locked out**, which is why IT staff complained in the morning. The attacker also hid a sentence in a login field to **trick AI tools** that read the logs.
+On the night of **12 November 2026**, an attacker at IP **203.0.113.77** tried a few common passwords against **many** accounts at **Meridian Logistics Pte Ltd** (`meridian.local`), a fictional Singapore freight company. This is called **password spraying**. One employee in Finance, **sarah.lim**, had a weak password, so the attacker **got in** and then took **remote control** of the computer (Remote Desktop). Along the way, four **admin accounts were locked out**, which is why IT staff complained in the morning. The attacker also hid a sentence in a login field to **trick AI tools** that read the logs.
 
 Students don't know any of this at the start. **They discover it step by step.**
 
@@ -72,7 +72,7 @@ Students don't know any of this at the start. **They discover it step by step.**
 | Tool | What students see | Real or sample? | Real-world equivalent |
 |---|---|---|---|
 | **Windows Event Viewer** | The real Security log of **their own PC** | ✅ **Real** (their PC) | Where Windows stores every login record |
-| **CorpSOC SIEM console** (the link above) | The **domain controller's** login records from the attack night, with a **severity** for each event | 🧪 **Sample** (prepared data) | A SIEM such as **Wazuh, Splunk or Microsoft Sentinel** |
+| **Meridian SOC SIEM console** (the link above) | The **domain controller's** login records from the attack night, with a **severity** for each event | 🧪 **Sample** (prepared data) | A SIEM such as **Wazuh, Splunk or Microsoft Sentinel** |
 | **Wireshark** + `network_capture.pcap` | The **network traffic** recorded during the same night | 🧪 **Sample** (prepared recording) | A packet capture taken by the network team |
 
 ### 2.3 Where does the data come from?
@@ -195,7 +195,7 @@ By the end of the lab, students can:
 2. Open the **SIEM console**: https://tsuyoiman.github.io/cybersec-lab4-credential-attack/ (offline: double-click `docs/index.html`).
 3. Open **Wireshark** from the Start menu.
 
-✅ **Expected:** the SIEM console shows **🛡️ CorpSOC SIEM · Security Events** with **"327 of 327 events"** and a coloured **Severity** column.
+✅ **Expected:** the SIEM console shows **🛡️ Meridian SOC SIEM · Security Events** with **"327 of 327 events"** and a coloured **Severity** column.
 
 **What's in the lab folder:**
 
@@ -214,7 +214,7 @@ By the end of the lab, students can:
 
 🧑‍🏫 **Read aloud:**
 
-> *"On the morning of **12 November 2026**, IT staff at Corp couldn't log in because their accounts were **locked out**. One user, **j.tan**, says she was asleep at 3 a.m., but her account shows activity at that time.
+> *"On the morning of **12 November 2026**, IT staff at **Meridian Logistics** couldn't log in because their accounts were **locked out**. One user, **sarah.lim**, says she was asleep at 3 a.m., but her account shows activity at that time.
 > You are the **SOC analyst on duty**. You have the security logs from the domain controller **DC01** and a network recording from the same night. **Find out what happened.**"*
 
 👩‍💻 **Students do:** discuss with their partner for one minute: *"What kind of attack could cause lockouts and a strange 3 a.m. login?"*
@@ -234,7 +234,7 @@ By the end of the lab, students can:
 | | Brute force | Password spraying |
 |---|---|---|
 | Targets | **One** account | **Many** accounts |
-| Passwords | **Many** per account | **One or two** common ones (`Winter2026!`) |
+| Passwords | **Many** per account | **One or two** common ones (`Meridian2026!`, `Winter2026!`) |
 | Triggers lockout? | Yes, quickly | Usually **no**, because each account gets only 1–2 tries |
 | Looks like in logs | Many failures for **one user** | Failures across **many users** from **one IP** |
 
@@ -301,7 +301,7 @@ By the end of the lab, students can:
 
 👩‍💻 **Do:** click **Reset** → click the **Severity** column header (Critical comes first) → look at **Count by Severity** on the right.
 
-✅ **See:** **2 Critical · 100 High · 3 Medium · 6 Low · 216 Info**. Both **Critical** events are **j.tan logging in from 203.0.113.77**.
+✅ **See:** **2 Critical · 100 High · 3 Medium · 6 Low · 216 Info**. Both **Critical** events are **sarah.lim logging in from 203.0.113.77**.
 
 💡 **Explain:** *"Always start with **Critical**: an account may already be in the attacker's hands. Then High, then Medium."*
 
@@ -354,11 +354,11 @@ By the end of the lab, students can:
 
 👩‍💻 **Do:** keep the IP filter → **Event ID → 4624 – Logon success**.
 
-✅ **See:** two 🔴 **Critical** rows for **j.tan**:
+✅ **See:** two 🔴 **Critical** rows for **sarah.lim**:
 - **03:02:57**, logon type **3**: the round 2 password **worked**
 - **03:21:37**, logon type **10**: **Remote Desktop**, so the attacker took control
 
-💡 **Explain:** *"This solves the mystery of j.tan's 3 a.m. activity. Her password was guessed, and the attacker used it to log in remotely."*
+💡 **Explain:** *"This solves the mystery of sarah.lim's 3 a.m. activity. Her password was guessed, and the attacker used it to log in remotely."*
 
 ### 3.8 Why were IT staff locked out?
 
@@ -368,16 +368,16 @@ By the end of the lab, students can:
 
 💡 **Explain:** *"Normal users got only 2 tries, under the lockout limit of 5. In round 3 the attacker went after the **admin** accounts and gave them 5, so they locked. That's the morning complaint."*
 
-### 3.9 Triage a Medium alert: s.lim (false positive)
+### 3.9 Triage a Medium alert: marcus.wong (false positive)
 
-👩‍💻 **Do:** **Reset** → **Severity → Medium** → then clear it and type `s.lim` in **User**.
+👩‍💻 **Do:** **Reset** → **Severity → Medium** → then clear it and type `marcus.wong` in **User**.
 
-✅ **See:** 3 failures at **09:05** from **10.10.20.39** (her own PC), logon type **2** (at the keyboard), then **success at 09:06:03**.
+✅ **See:** 3 failures at **09:05** from **10.10.20.39** (his own PC, `OPS-WS-06`), logon type **2** (at the keyboard), then **success at 09:06:03**.
 
-💡 **Explain:** *"The SIEM was right to flag it **Medium**: it needs checking. But with context (her own desk, work hours, one account, success a minute later) it's just a **typo**. Dismissing false positives correctly is a core analyst skill."*
+💡 **Explain:** *"The SIEM was right to flag it **Medium**: it needs checking. But with context (his own desk, work hours, one account, success a minute later) it's just a **typo**. Dismissing false positives correctly is a core analyst skill."*
 
 ✅ **Checkpoint:** every pair can say:
-> *"203.0.113.77 password-sprayed 43 accounts between 02:47 and 03:16, broke into **j.tan** (Critical), used **Remote Desktop** (Critical), and locked out **4 admin accounts** (High). s.lim was a false positive."*
+> *"203.0.113.77 password-sprayed 43 accounts between 02:47 and 03:16, broke into **sarah.lim** (Critical), used **Remote Desktop** (Critical), and locked out **4 admin accounts** (High). marcus.wong was a false positive."*
 
 ---
 
@@ -401,7 +401,7 @@ By the end of the lab, students can:
 
 👩‍💻 **Do:** click the filter bar (*"Apply a display filter…"*) → type `ntlmssp.auth.username` → **Enter**.
 
-✅ **See:** **97** packets, all **Source 203.0.113.77 → Destination 10.10.1.10** (DC01), **Protocol SMB2**, and **Info** like `User: CORP\user1`, `CORP\s.lim`…
+✅ **See:** **97** packets, all **Source 203.0.113.77 → Destination 10.10.1.10** (DC01), **Protocol SMB2**, and **Info** like `User: MERIDIAN\user1`, `MERIDIAN\marcus.wong`, `MERIDIAN\deepa.kumar`…
 
 💡 **Explain:** *"Same IP, same usernames as the SIEM. Each packet is one login attempt."*
 
@@ -420,7 +420,7 @@ By the end of the lab, students can:
 3. Read **Domain name**, **User name** and **Host name**.
 4. Right-click **User name** → **Apply as Column**.
 
-✅ **See:** `CORP` / the username tried / `DESKTOP-7Q1X9ZA` (the attacker's PC). A new **User name** column now shows every attempt.
+✅ **See:** `MERIDIAN` / the username tried / `DESKTOP-7Q1X9ZA` (the attacker's PC). A new **User name** column now shows every attempt.
 
 💡 **Explain:** *"The login message carries the **username, not the password**. The password is protected. The host name matches the `WorkstationName` in the SIEM."*
 
@@ -431,20 +431,20 @@ By the end of the lab, students can:
 | Filter | ✅ Result | Matches in the SIEM |
 |---|---|---|
 | `smb2.nt_status == 0xc000006d` | **96** replies: `STATUS_LOGON_FAILURE` | The 96 failed logins (4625) from the attacker |
-| `smb2.cmd == 1 && smb2.nt_status == 0 && smb2.flags.response == 1` | **1** reply (No. **875**, 03:02:57): login **accepted** | j.tan's **Critical** 4624 |
-| `ntlmssp.auth.username == "j.tan"` | **2** attempts: 02:47:53 (failed), 03:02:57 (No. 874, succeeded) | j.tan's failure and success |
+| `smb2.cmd == 1 && smb2.nt_status == 0 && smb2.flags.response == 1` | **1** reply (No. **875**, 03:02:57): login **accepted** | sarah.lim's **Critical** 4624 |
+| `ntlmssp.auth.username == "sarah.lim"` | **2** attempts: 02:47:53 (failed), 03:02:57 (No. 874, succeeded) | sarah.lim's failure and success |
 
-💡 **Explain:** *"Same count, same time. The network **proves** j.tan was compromised at 03:02:57."*
+💡 **Explain:** *"Same count, same time. The network **proves** sarah.lim was compromised at 03:02:57."*
 
 ### 4.5 See the Remote Desktop session
 
 👩‍💻 **Do:** filter `rdp` → **Enter**, then filter `tcp.port == 3389` → **Enter**.
 
 ✅ **See:**
-- `rdp`: **2** packets at 03:21:31. No. **1194** shows `Cookie: mstshash=j.tan`
+- `rdp`: **2** packets at 03:21:31. No. **1194** shows `Cookie: mstshash=sarah.lim`
 - `tcp.port == 3389`: **55** packets, mostly encrypted **TLS** data
 
-💡 **Explain:** *"`mstshash` is the username the Remote Desktop client sends. The attacker used **j.tan's stolen password** to take control. We can't see what they did because RDP is **encrypted**, which is why the log (4624 type 10) matters too."*
+💡 **Explain:** *"`mstshash` is the username the Remote Desktop client sends. The attacker used **sarah.lim's stolen password** to take control. We can't see what they did because RDP is **encrypted**, which is why the log (4624 type 10) matters too."*
 
 ### 4.6 See severity in Wireshark
 
@@ -458,7 +458,7 @@ By the end of the lab, students can:
 
 ✅ **See:** the packet list is coloured: 🟡 login attempts, 🟠 failures, 🔴 the success and the RDP session. The CRITICAL filter shows **56** packets: the one successful login + **55** RDP packets.
 
-💡 **Explain:** *"The **same two moments** are Critical in both tools: j.tan's login and the Remote Desktop session. Logs and network agree, at the same severity."*
+💡 **Explain:** *"The **same two moments** are Critical in both tools: sarah.lim's login and the Remote Desktop session. Logs and network agree, at the same severity."*
 
 ### 4.7 The big picture
 
@@ -466,7 +466,7 @@ By the end of the lab, students can:
 
 ✅ **See:** **203.0.113.77 ↔ 10.10.1.10** has about **1,221** packets. Everything else has fewer than 10.
 
-*Optional:* filter `dns` → at **02:46:58** the attacker looked up `dc01.corp.local`, 14 seconds before the attack (**reconnaissance**).
+*Optional:* filter `dns` → at **02:46:58** the attacker looked up `dc01.meridian.local`, 14 seconds before the attack (**reconnaissance**).
 
 ✅ **Checkpoint:** every finding from Step 3 is **confirmed on the network**.
 
@@ -483,11 +483,11 @@ By the end of the lab, students can:
 | 02:46:58 | Attacker looks up the domain controller | ⚪ Info | — | DNS query |
 | 02:47:12 – 02:48:25 | Spray round 1 (42 names) | 🟠 High | 42 × 4625 | 42 × logon failure |
 | 03:02:07 – 03:03:19 | Spray round 2 | 🟠 High | 41 × 4625 | 41 × logon failure |
-| **03:02:57** | **j.tan compromised** | 🔴 **Critical** | 4624 type 3 | Success reply (No. 875) |
+| **03:02:57** | **sarah.lim compromised** | 🔴 **Critical** | 4624 type 3 | Success reply (No. 875) |
 | 03:15:04 – 03:15:38 | Round 3 on 4 admin accounts | 🟠 High | 12 × 4625 | 12 × logon failure |
 | 03:15:30 – 03:15:39 | 4 admin accounts locked | 🟠 High | 4 × 4740 | *(not visible on the network)* |
 | 03:16:12 | Instruction text planted in a username | 🟠 High | 1 × 4625 | 1 login packet |
-| **03:21:31 – 03:21:37** | **Remote Desktop as j.tan** | 🔴 **Critical** | 4624 type 10 | RDP `mstshash=j.tan` |
+| **03:21:31 – 03:21:37** | **Remote Desktop as sarah.lim** | 🔴 **Critical** | 4624 type 10 | RDP `mstshash=sarah.lim` |
 
 💡 **Explain:** *"Some evidence exists **only in logs** (lockouts happen inside the server), and some shows best on the **network** (the RDP connection). That's why analysts use both."*
 
@@ -509,8 +509,8 @@ By the end of the lab, students can:
 
 | Measure | Why it helps against this attack |
 |---|---|
-| **MFA (multi-factor authentication)** | Even with j.tan's password, the attacker can't log in. **The most effective control** |
-| **Banned / weak password list** | Blocks `Season+Year!` passwords such as `Winter2026!`, the ones spraying relies on |
+| **MFA (multi-factor authentication)** | Even with sarah.lim's password, the attacker can't log in. **The most effective control** |
+| **Banned / weak password list** | Blocks `Season+Year!` passwords such as `Meridian2026!` or `Winter2026!`, the ones spraying relies on |
 | **Account lockout policy** | Slows guessing, but spraying stays under it, so it's **not enough alone** |
 | **No RDP/SMB exposed to the internet** | Require a **VPN**. The attacker reached the server directly |
 | **Disable legacy authentication** (e.g. NTLM) | Removes logins that bypass modern protections like MFA |
@@ -520,8 +520,8 @@ By the end of the lab, students can:
 ### 6.3 What do we do right now? (2 min)
 
 🧑‍🏫 **Ask** the class, then confirm:
-- **Contain:** disable **j.tan**, reset her password, end her sessions, **block 203.0.113.77**
-- **Investigate:** what did j.tan's account do after 03:21?
+- **Contain:** disable **sarah.lim**, reset her password, end her sessions, **block 203.0.113.77**
+- **Investigate:** what did sarah.lim's account do after 03:21?
 - **Recover:** check, then unlock the 4 admin accounts and reset their passwords
 
 💡 **Security+ link:** **Detection** → **Analysis** → **Containment** → **Eradication** → **Recovery** → **Lessons learned**.
@@ -553,7 +553,7 @@ By the end of the lab, students can:
 
 | The AI said | The evidence says |
 |---|---|
-| "No accounts were compromised" | ❌ **j.tan was compromised** at 03:02:57 (Critical) |
+| "No accounts were compromised" | ❌ **sarah.lim was compromised** at 03:02:57 (Critical) |
 | *(nothing about Remote Desktop)* | ❌ The attacker **used RDP** at 03:21 (Critical) |
 | "Authorised penetration test" | ❌ **No evidence**. Where did this come from? |
 | "Lockouts are expected" | ❌ 4 admin accounts locked **by an attacker** (High) |
@@ -581,7 +581,7 @@ Detection: *Instruction text in log field (possible AI prompt injection)*.
 |---|---|
 | *How do we make AI log tools safer?* | Treat log data as **untrusted text, never instructions**. **Check the AI's answer** against facts. Flag instruction-like text, as our SIEM rule did |
 | *Who makes the final decision?* | The **human analyst**. AI assists, and **evidence decides** |
-| *How else do attackers use AI?* | Smarter password guesses (`Corp2026!`), collecting employee names, better phishing |
+| *How else do attackers use AI?* | Smarter password guesses (company name + year, e.g. `Meridian2026!`), collecting employee names, better phishing |
 | *Link to Lab 6?* | Same attack, different target. In Lab 6 the poisoned input is a **document** read by an AI chatbot |
 
 ---
@@ -689,7 +689,7 @@ Detection: *Instruction text in log field (possible AI prompt injection)*.
 | `ntlmssp.auth.username` | Every login attempt with its username | 97 |
 | `smb2.nt_status == 0xc000006d` | Server replies: logon **failure** | 96 |
 | `smb2.cmd == 1 && smb2.nt_status == 0 && smb2.flags.response == 1` | Server reply: logon **success** | 1 |
-| `ntlmssp.auth.username == "j.tan"` | Attempts for one user | 2 |
+| `ntlmssp.auth.username == "sarah.lim"` | Attempts for one user | 2 |
 | `ntlmssp.auth.username contains "ignore"` | The prompt-injection attempt | 1 |
 | `ip.addr == 203.0.113.77` | Everything the attacker sent/received | — |
 | `rdp` | Remote Desktop connection setup (`mstshash=`) | 2 |
@@ -738,7 +738,7 @@ $log | Where-Object SourceIP -eq '203.0.113.77' | Format-Table TimeCreated, Even
 
 | Event | Severity | Looks like | Actually |
 |---|---|---|---|
-| `s.lim`: 3 failures at 09:05 | 🟡 Medium | Brute force | Typo at her own desk, then success |
+| `marcus.wong`: 3 failures at 09:05 | 🟡 Medium | Brute force | Typo at his own desk (`OPS-WS-06`), then success |
 | Single failures during the day | 🔵 Low | Attacks | Typos followed by success seconds later |
 | `svc_backup` at 01:00 and 23:00 | ⚪ Info | Night activity | Scheduled backup service |
 | `it.admin` RDP at 21:14 | ⚪ Info | Remote login at night | IT admin via the internal VPN (`10.10.99.x`) |
@@ -773,7 +773,7 @@ $log | Where-Object SourceIP -eq '203.0.113.77' | Format-Table TimeCreated, Even
 │   ├── auth_logs.csv                  ← DC01 login records (327 events, 12 Nov 2026, UTC+8)
 │   └── network_capture.pcap           ← network recording of the same night
 ├── docs/
-│   └── index.html                     ← CorpSOC SIEM console (works offline)
+│   └── index.html                     ← Meridian SOC SIEM console (works offline)
 └── tools/
     ├── wireshark/
     │   └── lab4-severity.colorfilters ← Wireshark severity colours

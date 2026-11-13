@@ -17,23 +17,35 @@ random.seed(4)  # deterministic: every run builds the same dataset
 
 TZ = timezone(timedelta(hours=8))
 DAY = datetime(2026, 11, 12, tzinfo=TZ)
-DC = "DC01.corp.local"
+DC = "DC01.meridian.local"
 DC_IP = "10.10.1.10"
 ATTACKER_IP = "203.0.113.77"
 ATTACKER_WS = "DESKTOP-7Q1X9ZA"
-VICTIM = "j.tan"
+VICTIM = "sarah.lim"
 
-USERS = [
-    "a.wong", "b.lee", "c.ng", "d.koh", "e.lim", "f.chua", "g.ong", "h.goh",
-    "i.teo", "j.tan", "k.ho", "l.yeo", "m.chan", "n.sim", "o.low", "p.foo",
-    "q.seah", "r.quek", "s.lim", "t.toh", "u.wee", "v.ang", "w.loh", "x.poh",
-    "y.kwek", "z.chia", "aa.raj", "bb.kumar", "cc.devi", "dd.hassan",
+# Meridian Logistics Pte Ltd: fictional Singapore freight company (meridian.local)
+STAFF = [  # (username, department)
+    ("daniel.koh", "FIN"), ("priya.nair", "FIN"), ("michelle.tan", "HR"), ("aisha.rahman", "HR"),
+    ("kenneth.ong", "OPS"), ("nurul.hassan", "OPS"), ("rachel.chua", "SALES"), ("jason.teo", "SALES"),
+    ("vanessa.goh", "SALES"), ("sarah.lim", "FIN"), ("benjamin.ho", "OPS"), ("grace.yeo", "HR"),
+    ("alvin.chan", "OPS"), ("joanne.sim", "FIN"), ("kelvin.low", "WH"), ("fiona.foo", "SALES"),
+    ("bryan.seah", "OPS"), ("cheryl.quek", "FIN"), ("marcus.wong", "OPS"), ("samuel.toh", "WH"),
+    ("eileen.wee", "HR"), ("victor.ang", "SALES"), ("winnie.loh", "FIN"), ("desmond.poh", "WH"),
+    ("jasmine.kwek", "SALES"), ("terence.chia", "OPS"), ("arjun.raj", "PROC"), ("deepa.kumar", "FIN"),
+    ("lakshmi.devi", "HR"), ("farid.hassan", "WH"),
 ]
+USERS = [u for u, _ in STAFF]
 PRIV = ["administrator", "it.admin", "svc_backup", "helpdesk"]
 FAKE = ["admin", "test", "guest", "user1", "john.smith", "backup", "scanner", "training"]
 
 # each user has a desk PC
-PC = {u: (f"WS-{i+101:03d}", f"10.10.20.{i+21}") for i, u in enumerate(USERS + PRIV)}
+DEPT = dict(STAFF) | {u: "IT" for u in PRIV}
+_seq = {}
+PC = {}
+for i, u in enumerate(USERS + PRIV):
+    d = DEPT[u]
+    _seq[d] = _seq.get(d, 0) + 1
+    PC[u] = (f"{d}-WS-{_seq[d]:02d}", f"10.10.20.{i+21}")
 
 rows = []
 
@@ -44,7 +56,7 @@ def add(ts, eid, user, ltype="", ip="", ws="", status="", sub="", reason=""):
         "EventID": eid,
         "Computer": DC,
         "TargetUserName": user,
-        "TargetDomainName": "CORP",
+        "TargetDomainName": "MERIDIAN",
         "LogonType": ltype,
         "SourceIP": ip,
         "WorkstationName": ws,
@@ -91,11 +103,11 @@ for u in random.sample(USERS, 6):
     fail(t, u, ip, ws, 2)
     ok(t + timedelta(seconds=random.randint(5, 9)), u, ip, ws, 2)
 
-# TRAP 1: s.lim forgets her new password at 09:05 -> 3 failures, then succeeds. Not an attack.
-ws, ip = PC["s.lim"]
+# TRAP 1: marcus.wong forgets his new password at 09:05 -> 3 failures, then succeeds. Not an attack.
+ws, ip = PC["marcus.wong"]
 for i, sec in enumerate([2, 14, 31]):
-    fail(at(9, 5, sec), "s.lim", ip, ws, 2)
-ok(at(9, 6, 3), "s.lim", ip, ws, 2)
+    fail(at(9, 5, sec), "marcus.wong", ip, ws, 2)
+ok(at(9, 6, 3), "marcus.wong", ip, ws, 2)
 
 # TRAP 2: backup service runs every night at 01:00 (looks odd because of the hour, but normal)
 add(at(1, 0, 4), 4624, "svc_backup", 5, "-", "-")
@@ -116,7 +128,7 @@ for u in targets:
     fail(t, u, ATTACKER_IP, ATTACKER_WS, 3, unknown=u in FAKE)
     attack_events.append((t, u, "fail"))
 
-# Round 2: 03:02 password #2 - j.tan uses it, so it succeeds
+# Round 2: 03:02 password #2 - the victim uses it, so it succeeds
 t = at(3, 2, 5)
 round2 = targets[:]
 random.shuffle(round2)
@@ -283,7 +295,7 @@ def ntlm_negotiate():
 
 
 def ntlm_challenge():
-    target = "CORP".encode("utf-16le")
+    target = "MERIDIAN".encode("utf-16le")
     payload_off = 56
     return (b"NTLMSSP\x00" + struct.pack("<I", 2) +
             struct.pack("<HHI", len(target), len(target), payload_off) +
@@ -329,7 +341,7 @@ def smb_logon(cip, ws, user, ts, success):
     sess = random.getrandbits(48)
     c.send(session_setup_req(spnego_init(ntlm_negotiate()), 1))
     c.reply(session_setup_resp(spnego_resp(ntlm_challenge(), state=1, with_mech=True), STATUS_MORE, 1, sess))
-    auth = der(0xA1, der(0x30, der(0xA2, der(0x04, ntlm_auth(user, "CORP", ws, ts)))))
+    auth = der(0xA1, der(0x30, der(0xA2, der(0x04, ntlm_auth(user, "MERIDIAN", ws, ts)))))
     c.send(session_setup_req(auth, 2, sess))
     if success:
         c.reply(session_setup_resp(spnego_resp(state=0), 0, 2, sess))
@@ -353,16 +365,16 @@ def dns(ts, cip, name, ans):
 for i in range(14):
     ts = at(2, 40) + timedelta(seconds=random.randint(0, 3000))
     u = random.choice(USERS)
-    dns(ts, PC[u][1], "fileserver.corp.local", "10.10.1.20")
+    dns(ts, PC[u][1], "fs01.meridian.local", "10.10.1.20")
 
-dns(at(2, 46, 58), ATTACKER_IP, "dc01.corp.local", DC_IP)
+dns(at(2, 46, 58), ATTACKER_IP, "dc01.meridian.local", DC_IP)
 for ts, user, outcome in attack_events:
     smb_logon(ATTACKER_IP, ATTACKER_WS, user, ts, outcome == "ok")
 
 # RDP session from attacker (TLS-wrapped, so only the connection is visible)
 c = Conn(ATTACKER_IP, DC_IP, 51544, 3389, rdp_time - timedelta(seconds=6))
 # X.224 Connection Request with RDP negotiation request (TLS)
-cookie = b"Cookie: mstshash=j.tan\r\n"
+cookie = b"Cookie: mstshash=sarah.lim\r\n"
 x224 = bytes([6 + len(cookie) + 8, 0xE0, 0, 0, 0, 0, 0]) + cookie + bytes([1, 0, 8, 0, 3, 0, 0, 0])
 c.send(struct.pack(">BBH", 3, 0, 4 + len(x224)) + x224)
 c.reply(bytes.fromhex("030000130ed000001234000200080001000000"))
