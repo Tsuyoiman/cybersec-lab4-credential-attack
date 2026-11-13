@@ -284,9 +284,11 @@ def ntlm_challenge():
             b"\x0a\x00\x63\x45\x00\x00\x00\x0f" + target)
 
 
-def ntlm_auth(user, domain, ws):
+def ntlm_auth(user, domain, ws, ts):
     lm = b"\x00" * 24
-    nt = bytes(random.getrandbits(8) for _ in range(16)) + b"\x01\x01\x00\x00" + bytes(random.getrandbits(8) for _ in range(28))
+    filetime = int((ts.timestamp() + 11644473600) * 10_000_000)  # Windows FILETIME of the attempt
+    nt = (bytes(random.getrandbits(8) for _ in range(16)) + b"\x01\x01\x00\x00" + b"\x00" * 4 +
+          struct.pack("<Q", filetime) + bytes(random.getrandbits(8) for _ in range(8)) + b"\x00" * 4)
     d, u, w = (s.encode("utf-16le") for s in (domain, user, ws))
     off = 64
     fields, payload = b"", b""
@@ -319,7 +321,7 @@ def smb_logon(cip, ws, user, ts, success):
     sess = random.getrandbits(48)
     c.send(session_setup_req(spnego_init(ntlm_negotiate()), 1))
     c.reply(session_setup_resp(spnego_resp(ntlm_challenge(), state=1, with_mech=True), STATUS_MORE, 1, sess))
-    auth = der(0xA1, der(0x30, der(0xA2, der(0x04, ntlm_auth(user, "CORP", ws)))))
+    auth = der(0xA1, der(0x30, der(0xA2, der(0x04, ntlm_auth(user, "CORP", ws, ts)))))
     c.send(session_setup_req(auth, 2, sess))
     if success:
         c.reply(session_setup_resp(spnego_resp(state=0), 0, 2, sess))
