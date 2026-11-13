@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab 4 Log Viewer – DC01 Security Log</title>
+<style>
+  :root { --bg:#0f1419; --panel:#161d25; --line:#26313d; --text:#d6dde4; --muted:#8293a3; --accent:#3fa7ff; --bad:#ff6b6b; --good:#4cd97b; --warn:#ffb347; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; }
+  header span { color:var(--muted); font-size:13px; }
+  .bar { display:flex; flex-wrap:wrap; gap:10px; padding:12px 20px; background:var(--panel); border-bottom:1px solid var(--line); align-items:end; }
+  label { display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:3px; }
+  input, select, button { font:inherit; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 9px; }
+  input { width:150px; }
+  button { cursor:pointer; }
+  button.primary { background:var(--accent); color:#00121f; border-color:var(--accent); font-weight:600; }
+  .count { margin-left:auto; color:var(--muted); font-size:13px; }
+  main { display:grid; grid-template-columns: 1fr 300px; min-height: calc(100vh - 120px); }
+  .tablewrap { overflow:auto; max-height: calc(100vh - 125px); }
+  table { border-collapse:collapse; width:100%; font-family: ui-monospace, Consolas, monospace; font-size:12.5px; }
+  th { position:sticky; top:0; background:var(--panel); text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); cursor:pointer; white-space:nowrap; user-select:none; }
+  th:hover { color:var(--accent); }
+  td { padding:5px 9px; border-bottom:1px solid #1c252f; white-space:nowrap; }
+  tr:hover td { background:#1b2430; }
+  tr.e4625 td:nth-child(2) { color:var(--bad); font-weight:600; }
+  tr.e4624 td:nth-child(2) { color:var(--good); font-weight:600; }
+  tr.e4740 td:nth-child(2) { color:var(--warn); font-weight:600; }
+  td.click { cursor:pointer; text-decoration: underline dotted; }
+  aside { border-left:1px solid var(--line); padding:14px 16px; background:var(--panel); overflow:auto; max-height: calc(100vh - 125px); }
+  aside h2 { font-size:14px; margin:4px 0 8px; }
+  aside p { color:var(--muted); font-size:12px; margin:0 0 10px; }
+  .grp { width:100%; border-collapse:collapse; margin-bottom:18px; font-size:12.5px; }
+  .grp td { padding:4px 6px; border-bottom:1px solid var(--line); }
+  .grp td:last-child { text-align:right; font-variant-numeric: tabular-nums; }
+  .grp tr { cursor:pointer; }
+  .legend { font-size:12px; color:var(--muted); line-height:1.7; }
+  .legend b { color:var(--text); }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } aside { border-left:0; border-top:1px solid var(--line); max-height:none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>DC01 Security Log Viewer</h1>
+  <span>Lab 4 · Simulated Credential Attack · corp.local · 12 Nov 2026 (UTC+8)</span>
+</header>
+
+<div class="bar">
+  <label>Event ID
+    <select id="fEvent">
+      <option value="">All</option>
+      <option value="4624">4624 – Logon success</option>
+      <option value="4625">4625 – Logon failed</option>
+      <option value="4740">4740 – Account locked</option>
+    </select>
+  </label>
+  <label>Source IP <input id="fIP" placeholder="e.g. 10.10.20.21"></label>
+  <label>User <input id="fUser" placeholder="e.g. a.wong"></label>
+  <label>Logon type
+    <select id="fType">
+      <option value="">All</option>
+      <option value="2">2 – Interactive</option>
+      <option value="3">3 – Network</option>
+      <option value="5">5 – Service</option>
+      <option value="7">7 – Unlock</option>
+      <option value="10">10 – Remote Desktop</option>
+    </select>
+  </label>
+  <label>From <input id="fFrom" type="time" step="1"></label>
+  <label>To <input id="fTo" type="time" step="1"></label>
+  <label>Search anything <input id="fAny" placeholder="free text"></label>
+  <button id="reset">Reset</button>
+  <button id="export" class="primary">Download filtered CSV</button>
+  <div class="count" id="count"></div>
+</div>
+
+<main>
+  <div class="tablewrap">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="body"></tbody>
+    </table>
+  </div>
+  <aside>
+    <h2>Count by Source IP</h2>
+    <p>Counts use the current filters. Click a row to filter by it.</p>
+    <table class="grp" id="byIP"></table>
+    <h2>Count by User</h2>
+    <p>Counts use the current filters.</p>
+    <table class="grp" id="byUser"></table>
+    <h2>Quick reference</h2>
+    <div class="legend">
+      <b>4624</b> successful logon<br>
+      <b>4625</b> failed logon<br>
+      <b>4740</b> account locked out<br>
+      <b>0xC000006A</b> wrong password (user exists)<br>
+      <b>0xC0000064</b> user name does not exist<br>
+      <b>Type 2</b> at the keyboard · <b>3</b> over network · <b>10</b> RDP
+    </div>
+  </aside>
+</main>
+
+<script>
+const CSV = `__CSV_DATA__`;
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  const cols = lines[0].split(",");
+  return { cols, rows: lines.slice(1).map(l => { const v = l.split(","); const o = {}; cols.forEach((c, i) => o[c] = v[i] ?? ""); return o; }) };
+}
+const { cols, rows } = parseCSV(CSV);
+const SHOW = ["TimeCreated","EventID","TargetUserName","LogonType","SourceIP","WorkstationName","SubStatus","FailureReason"];
+const $ = id => document.getElementById(id);
+let sortCol = "TimeCreated", sortDir = 1, current = rows;
+
+$("head").innerHTML = SHOW.map(c => `<th data-c="${c}">${c}</th>`).join("");
+$("head").addEventListener("click", e => {
+  const c = e.target.dataset.c; if (!c) return;
+  sortDir = (sortCol === c) ? -sortDir : 1; sortCol = c; render();
+});
+
+function filtered() {
+  const ev = $("fEvent").value, ip = $("fIP").value.trim().toLowerCase(), u = $("fUser").value.trim().toLowerCase(),
+        ty = $("fType").value, fr = $("fFrom").value, to = $("fTo").value, any = $("fAny").value.trim().toLowerCase();
+  return rows.filter(r => {
+    const t = r.TimeCreated.slice(11);
+    return (!ev || r.EventID === ev) && (!ip || r.SourceIP.toLowerCase().includes(ip)) &&
+      (!u || r.TargetUserName.toLowerCase().includes(u)) && (!ty || r.LogonType === ty) &&
+      (!fr || t >= (fr.length === 5 ? fr + ":00" : fr)) && (!to || t <= (to.length === 5 ? to + ":59" : to)) &&
+      (!any || Object.values(r).join(" ").toLowerCase().includes(any));
+  });
+}
+
+function group(list, key) {
+  const m = new Map(); list.forEach(r => { const k = r[key] || "(blank)"; m.set(k, (m.get(k) || 0) + 1); });
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function render() {
+  current = filtered().sort((a, b) => {
+    const x = a[sortCol], y = b[sortCol];
+    const nx = Number(x), ny = Number(y);
+    const cmp = (x !== "" && y !== "" && !isNaN(nx) && !isNaN(ny)) ? nx - ny : String(x).localeCompare(String(y));
+    return cmp * sortDir;
+  });
+  $("body").innerHTML = current.map(r => `<tr class="e${r.EventID}">` + SHOW.map(c =>
+    `<td${c === "SourceIP" || c === "TargetUserName" ? ` class="click" data-c="${c}"` : ""}>${esc(r[c])}</td>`).join("") + "</tr>").join("");
+  $("count").textContent = `${current.length} of ${rows.length} events`;
+  [...$("head").children].forEach(th => th.textContent = th.dataset.c + (th.dataset.c === sortCol ? (sortDir > 0 ? " ▲" : " ▼") : ""));
+  $("byIP").innerHTML = group(current, "SourceIP").slice(0, 25).map(([k, n]) => `<tr data-ip="${esc(k)}"><td>${esc(k)}</td><td>${n}</td></tr>`).join("");
+  $("byUser").innerHTML = group(current, "TargetUserName").slice(0, 25).map(([k, n]) => `<tr data-user="${esc(k)}"><td>${esc(k)}</td><td>${n}</td></tr>`).join("");
+}
+
+$("body").addEventListener("click", e => {
+  const td = e.target.closest("td.click"); if (!td) return;
+  if (td.dataset.c === "SourceIP") $("fIP").value = td.textContent; else $("fUser").value = td.textContent;
+  render();
+});
+$("byIP").addEventListener("click", e => { const tr = e.target.closest("tr"); if (tr) { $("fIP").value = tr.dataset.ip === "(blank)" ? "" : tr.dataset.ip; render(); } });
+$("byUser").addEventListener("click", e => { const tr = e.target.closest("tr"); if (tr) { $("fUser").value = tr.dataset.user; render(); } });
+["fEvent","fType","fFrom","fTo"].forEach(id => $(id).addEventListener("change", render));
+["fIP","fUser","fAny"].forEach(id => $(id).addEventListener("input", render));
+$("reset").addEventListener("click", () => { ["fEvent","fIP","fUser","fType","fFrom","fTo","fAny"].forEach(id => $(id).value = ""); sortCol = "TimeCreated"; sortDir = 1; render(); });
+$("export").addEventListener("click", () => {
+  const out = [cols.join(",")].concat(current.map(r => cols.map(c => r[c]).join(","))).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([out], { type: "text/csv" }));
+  a.download = "filtered_logs.csv"; a.click();
+});
+render();
+</script>
+</body>
+</html>

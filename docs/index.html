@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab 4 Log Viewer – DC01 Security Log</title>
+<style>
+  :root { --bg:#0f1419; --panel:#161d25; --line:#26313d; --text:#d6dde4; --muted:#8293a3; --accent:#3fa7ff; --bad:#ff6b6b; --good:#4cd97b; --warn:#ffb347; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; }
+  header span { color:var(--muted); font-size:13px; }
+  .bar { display:flex; flex-wrap:wrap; gap:10px; padding:12px 20px; background:var(--panel); border-bottom:1px solid var(--line); align-items:end; }
+  label { display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:3px; }
+  input, select, button { font:inherit; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 9px; }
+  input { width:150px; }
+  button { cursor:pointer; }
+  button.primary { background:var(--accent); color:#00121f; border-color:var(--accent); font-weight:600; }
+  .count { margin-left:auto; color:var(--muted); font-size:13px; }
+  main { display:grid; grid-template-columns: 1fr 300px; min-height: calc(100vh - 120px); }
+  .tablewrap { overflow:auto; max-height: calc(100vh - 125px); }
+  table { border-collapse:collapse; width:100%; font-family: ui-monospace, Consolas, monospace; font-size:12.5px; }
+  th { position:sticky; top:0; background:var(--panel); text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); cursor:pointer; white-space:nowrap; user-select:none; }
+  th:hover { color:var(--accent); }
+  td { padding:5px 9px; border-bottom:1px solid #1c252f; white-space:nowrap; }
+  tr:hover td { background:#1b2430; }
+  tr.e4625 td:nth-child(2) { color:var(--bad); font-weight:600; }
+  tr.e4624 td:nth-child(2) { color:var(--good); font-weight:600; }
+  tr.e4740 td:nth-child(2) { color:var(--warn); font-weight:600; }
+  td.click { cursor:pointer; text-decoration: underline dotted; }
+  aside { border-left:1px solid var(--line); padding:14px 16px; background:var(--panel); overflow:auto; max-height: calc(100vh - 125px); }
+  aside h2 { font-size:14px; margin:4px 0 8px; }
+  aside p { color:var(--muted); font-size:12px; margin:0 0 10px; }
+  .grp { width:100%; border-collapse:collapse; margin-bottom:18px; font-size:12.5px; }
+  .grp td { padding:4px 6px; border-bottom:1px solid var(--line); }
+  .grp td:last-child { text-align:right; font-variant-numeric: tabular-nums; }
+  .grp tr { cursor:pointer; }
+  .legend { font-size:12px; color:var(--muted); line-height:1.7; }
+  .legend b { color:var(--text); }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } aside { border-left:0; border-top:1px solid var(--line); max-height:none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>DC01 Security Log Viewer</h1>
+  <span>Lab 4 · Simulated Credential Attack · corp.local · 12 Nov 2026 (UTC+8)</span>
+</header>
+
+<div class="bar">
+  <label>Event ID
+    <select id="fEvent">
+      <option value="">All</option>
+      <option value="4624">4624 – Logon success</option>
+      <option value="4625">4625 – Logon failed</option>
+      <option value="4740">4740 – Account locked</option>
+    </select>
+  </label>
+  <label>Source IP <input id="fIP" placeholder="e.g. 10.10.20.21"></label>
+  <label>User <input id="fUser" placeholder="e.g. a.wong"></label>
+  <label>Logon type
+    <select id="fType">
+      <option value="">All</option>
+      <option value="2">2 – Interactive</option>
+      <option value="3">3 – Network</option>
+      <option value="5">5 – Service</option>
+      <option value="7">7 – Unlock</option>
+      <option value="10">10 – Remote Desktop</option>
+    </select>
+  </label>
+  <label>From <input id="fFrom" type="time" step="1"></label>
+  <label>To <input id="fTo" type="time" step="1"></label>
+  <label>Search anything <input id="fAny" placeholder="free text"></label>
+  <button id="reset">Reset</button>
+  <button id="export" class="primary">Download filtered CSV</button>
+  <div class="count" id="count"></div>
+</div>
+
+<main>
+  <div class="tablewrap">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="body"></tbody>
+    </table>
+  </div>
+  <aside>
+    <h2>Count by Source IP</h2>
+    <p>Counts use the current filters. Click a row to filter by it.</p>
+    <table class="grp" id="byIP"></table>
+    <h2>Count by User</h2>
+    <p>Counts use the current filters.</p>
+    <table class="grp" id="byUser"></table>
+    <h2>Quick reference</h2>
+    <div class="legend">
+      <b>4624</b> successful logon<br>
+      <b>4625</b> failed logon<br>
+      <b>4740</b> account locked out<br>
+      <b>0xC000006A</b> wrong password (user exists)<br>
+      <b>0xC0000064</b> user name does not exist<br>
+      <b>Type 2</b> at the keyboard · <b>3</b> over network · <b>10</b> RDP
+    </div>
+  </aside>
+</main>
+
+<script>
+const CSV = `TimeCreated,EventID,Computer,TargetUserName,TargetDomainName,LogonType,SourceIP,WorkstationName,Status,SubStatus,FailureReason
+2026-11-12 01:00:04,4624,DC01.corp.local,svc_backup,CORP,5,-,-,,,
+2026-11-12 02:47:12,4625,DC01.corp.local,user1,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 02:47:14,4625,DC01.corp.local,s.lim,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:17,4625,DC01.corp.local,bb.kumar,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:18,4625,DC01.corp.local,helpdesk,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:20,4625,DC01.corp.local,backup,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 02:47:22,4625,DC01.corp.local,cc.devi,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:24,4625,DC01.corp.local,w.loh,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:27,4625,DC01.corp.local,g.ong,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:29,4625,DC01.corp.local,dd.hassan,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:30,4625,DC01.corp.local,u.wee,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:32,4625,DC01.corp.local,o.low,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:34,4625,DC01.corp.local,l.yeo,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:35,4625,DC01.corp.local,p.foo,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:36,4625,DC01.corp.local,r.quek,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:38,4625,DC01.corp.local,test,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 02:47:41,4625,DC01.corp.local,guest,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 02:47:43,4625,DC01.corp.local,h.goh,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:44,4625,DC01.corp.local,x.poh,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:46,4625,DC01.corp.local,d.koh,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:47,4625,DC01.corp.local,administrator,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:50,4625,DC01.corp.local,c.ng,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:52,4625,DC01.corp.local,scanner,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 02:47:53,4625,DC01.corp.local,j.tan,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:55,4625,DC01.corp.local,aa.raj,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:56,4625,DC01.corp.local,it.admin,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:47:58,4625,DC01.corp.local,i.teo,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:00,4625,DC01.corp.local,a.wong,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:02,4625,DC01.corp.local,n.sim,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:03,4625,DC01.corp.local,b.lee,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:04,4625,DC01.corp.local,m.chan,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:05,4625,DC01.corp.local,f.chua,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:07,4625,DC01.corp.local,v.ang,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:09,4625,DC01.corp.local,admin,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 02:48:10,4625,DC01.corp.local,t.toh,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:11,4625,DC01.corp.local,z.chia,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:12,4625,DC01.corp.local,training,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 02:48:15,4625,DC01.corp.local,q.seah,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:17,4625,DC01.corp.local,john.smith,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 02:48:19,4625,DC01.corp.local,k.ho,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:21,4625,DC01.corp.local,y.kwek,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:23,4625,DC01.corp.local,e.lim,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 02:48:25,4625,DC01.corp.local,svc_backup,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:07,4625,DC01.corp.local,h.goh,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:09,4625,DC01.corp.local,q.seah,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:11,4625,DC01.corp.local,s.lim,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:12,4625,DC01.corp.local,test,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 03:02:14,4625,DC01.corp.local,z.chia,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:15,4625,DC01.corp.local,g.ong,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:17,4625,DC01.corp.local,john.smith,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 03:02:19,4625,DC01.corp.local,t.toh,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:21,4625,DC01.corp.local,helpdesk,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:24,4625,DC01.corp.local,b.lee,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:25,4625,DC01.corp.local,scanner,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 03:02:27,4625,DC01.corp.local,f.chua,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:28,4625,DC01.corp.local,d.koh,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:31,4625,DC01.corp.local,c.ng,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:33,4625,DC01.corp.local,p.foo,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:35,4625,DC01.corp.local,e.lim,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:36,4625,DC01.corp.local,dd.hassan,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:38,4625,DC01.corp.local,aa.raj,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:39,4625,DC01.corp.local,guest,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 03:02:40,4625,DC01.corp.local,user1,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 03:02:42,4625,DC01.corp.local,training,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 03:02:44,4625,DC01.corp.local,cc.devi,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:46,4625,DC01.corp.local,o.low,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:47,4625,DC01.corp.local,r.quek,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:49,4625,DC01.corp.local,n.sim,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:50,4625,DC01.corp.local,m.chan,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:52,4625,DC01.corp.local,w.loh,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:54,4625,DC01.corp.local,y.kwek,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:56,4625,DC01.corp.local,u.wee,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:02:57,4624,DC01.corp.local,j.tan,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,,,
+2026-11-12 03:02:59,4625,DC01.corp.local,x.poh,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:03:01,4625,DC01.corp.local,svc_backup,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:03:03,4625,DC01.corp.local,admin,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 03:03:05,4625,DC01.corp.local,backup,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC0000064,Unknown user name
+2026-11-12 03:03:07,4625,DC01.corp.local,v.ang,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:03:09,4625,DC01.corp.local,a.wong,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:03:10,4625,DC01.corp.local,l.yeo,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:03:11,4625,DC01.corp.local,bb.kumar,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:03:13,4625,DC01.corp.local,i.teo,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:03:14,4625,DC01.corp.local,k.ho,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:03:16,4625,DC01.corp.local,it.admin,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:03:19,4625,DC01.corp.local,administrator,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:04,4625,DC01.corp.local,administrator,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:06,4625,DC01.corp.local,it.admin,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:08,4625,DC01.corp.local,svc_backup,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:11,4625,DC01.corp.local,helpdesk,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:14,4625,DC01.corp.local,administrator,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:18,4625,DC01.corp.local,it.admin,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:22,4625,DC01.corp.local,svc_backup,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:25,4625,DC01.corp.local,helpdesk,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:29,4625,DC01.corp.local,administrator,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:30,4740,DC01.corp.local,administrator,CORP,,,DESKTOP-7Q1X9ZA,,,Account locked out
+2026-11-12 03:15:32,4625,DC01.corp.local,it.admin,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:33,4740,DC01.corp.local,it.admin,CORP,,,DESKTOP-7Q1X9ZA,,,Account locked out
+2026-11-12 03:15:35,4625,DC01.corp.local,svc_backup,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:36,4740,DC01.corp.local,svc_backup,CORP,,,DESKTOP-7Q1X9ZA,,,Account locked out
+2026-11-12 03:15:38,4625,DC01.corp.local,helpdesk,CORP,3,203.0.113.77,DESKTOP-7Q1X9ZA,0xC000006D,0xC000006A,Bad password
+2026-11-12 03:15:39,4740,DC01.corp.local,helpdesk,CORP,,,DESKTOP-7Q1X9ZA,,,Account locked out
+2026-11-12 03:21:37,4624,DC01.corp.local,j.tan,CORP,10,203.0.113.77,DESKTOP-7Q1X9ZA,,,
+2026-11-12 07:50:22,4624,DC01.corp.local,h.goh,CORP,2,10.10.20.28,WS-108,,,
+2026-11-12 07:50:23,4624,DC01.corp.local,s.lim,CORP,2,10.10.20.39,WS-119,,,
+2026-11-12 08:00:34,4624,DC01.corp.local,w.loh,CORP,2,10.10.20.43,WS-123,,,
+2026-11-12 08:07:18,4624,DC01.corp.local,z.chia,CORP,2,10.10.20.46,WS-126,,,
+2026-11-12 08:07:45,4624,DC01.corp.local,v.ang,CORP,2,10.10.20.42,WS-122,,,
+2026-11-12 08:10:10,4624,DC01.corp.local,r.quek,CORP,2,10.10.20.38,WS-118,,,
+2026-11-12 08:10:42,4624,DC01.corp.local,s.lim,CORP,3,10.10.20.39,WS-119,,,
+2026-11-12 08:12:59,4624,DC01.corp.local,c.ng,CORP,2,10.10.20.23,WS-103,,,
+2026-11-12 08:13:40,4624,DC01.corp.local,helpdesk,CORP,2,10.10.20.54,WS-134,,,
+2026-11-12 08:14:49,4624,DC01.corp.local,x.poh,CORP,2,10.10.20.44,WS-124,,,
+2026-11-12 08:15:19,4624,DC01.corp.local,a.wong,CORP,2,10.10.20.21,WS-101,,,
+2026-11-12 08:16:20,4624,DC01.corp.local,k.ho,CORP,2,10.10.20.31,WS-111,,,
+2026-11-12 08:18:09,4624,DC01.corp.local,n.sim,CORP,2,10.10.20.34,WS-114,,,
+2026-11-12 08:22:30,4624,DC01.corp.local,v.ang,CORP,3,10.10.20.42,WS-122,,,
+2026-11-12 08:22:51,4624,DC01.corp.local,b.lee,CORP,2,10.10.20.22,WS-102,,,
+2026-11-12 08:24:54,4624,DC01.corp.local,e.lim,CORP,2,10.10.20.25,WS-105,,,
+2026-11-12 08:24:59,4624,DC01.corp.local,y.kwek,CORP,2,10.10.20.45,WS-125,,,
+2026-11-12 08:26:11,4624,DC01.corp.local,aa.raj,CORP,2,10.10.20.47,WS-127,,,
+2026-11-12 08:26:32,4624,DC01.corp.local,x.poh,CORP,3,10.10.20.44,WS-124,,,
+2026-11-12 08:31:18,4624,DC01.corp.local,j.tan,CORP,2,10.10.20.30,WS-110,,,
+2026-11-12 08:32:05,4624,DC01.corp.local,d.koh,CORP,2,10.10.20.24,WS-104,,,
+2026-11-12 08:33:13,4624,DC01.corp.local,t.toh,CORP,2,10.10.20.40,WS-120,,,
+2026-11-12 08:36:32,4624,DC01.corp.local,dd.hassan,CORP,2,10.10.20.50,WS-130,,,
+2026-11-12 08:38:54,4624,DC01.corp.local,u.wee,CORP,2,10.10.20.41,WS-121,,,
+2026-11-12 08:39:53,4624,DC01.corp.local,m.chan,CORP,2,10.10.20.33,WS-113,,,
+2026-11-12 08:40:13,4624,DC01.corp.local,o.low,CORP,2,10.10.20.35,WS-115,,,
+2026-11-12 08:46:12,4624,DC01.corp.local,l.yeo,CORP,2,10.10.20.32,WS-112,,,
+2026-11-12 08:47:15,4624,DC01.corp.local,r.quek,CORP,3,10.10.20.38,WS-118,,,
+2026-11-12 08:48:04,4624,DC01.corp.local,p.foo,CORP,2,10.10.20.36,WS-116,,,
+2026-11-12 08:51:34,4624,DC01.corp.local,f.chua,CORP,2,10.10.20.26,WS-106,,,
+2026-11-12 08:55:54,4624,DC01.corp.local,r.quek,CORP,3,10.10.20.38,WS-118,,,
+2026-11-12 08:56:44,4624,DC01.corp.local,aa.raj,CORP,3,10.10.20.47,WS-127,,,
+2026-11-12 08:57:30,4624,DC01.corp.local,q.seah,CORP,2,10.10.20.37,WS-117,,,
+2026-11-12 08:58:04,4624,DC01.corp.local,bb.kumar,CORP,2,10.10.20.48,WS-128,,,
+2026-11-12 08:59:48,4624,DC01.corp.local,dd.hassan,CORP,3,10.10.20.50,WS-130,,,
+2026-11-12 08:59:49,4624,DC01.corp.local,aa.raj,CORP,3,10.10.20.47,WS-127,,,
+2026-11-12 09:00:20,4624,DC01.corp.local,g.ong,CORP,2,10.10.20.27,WS-107,,,
+2026-11-12 09:04:01,4624,DC01.corp.local,it.admin,CORP,2,10.10.20.52,WS-132,,,
+2026-11-12 09:05:02,4625,DC01.corp.local,s.lim,CORP,2,10.10.20.39,WS-119,0xC000006D,0xC000006A,Bad password
+2026-11-12 09:05:14,4625,DC01.corp.local,s.lim,CORP,2,10.10.20.39,WS-119,0xC000006D,0xC000006A,Bad password
+2026-11-12 09:05:31,4625,DC01.corp.local,s.lim,CORP,2,10.10.20.39,WS-119,0xC000006D,0xC000006A,Bad password
+2026-11-12 09:06:03,4624,DC01.corp.local,s.lim,CORP,2,10.10.20.39,WS-119,,,
+2026-11-12 09:08:26,4624,DC01.corp.local,i.teo,CORP,2,10.10.20.29,WS-109,,,
+2026-11-12 09:09:19,4624,DC01.corp.local,cc.devi,CORP,2,10.10.20.49,WS-129,,,
+2026-11-12 09:09:40,4624,DC01.corp.local,n.sim,CORP,3,10.10.20.34,WS-114,,,
+2026-11-12 09:10:43,4624,DC01.corp.local,q.seah,CORP,3,10.10.20.37,WS-117,,,
+2026-11-12 09:11:50,4624,DC01.corp.local,helpdesk,CORP,3,10.10.20.54,WS-134,,,
+2026-11-12 09:18:59,4624,DC01.corp.local,e.lim,CORP,3,10.10.20.25,WS-105,,,
+2026-11-12 09:19:28,4624,DC01.corp.local,x.poh,CORP,3,10.10.20.44,WS-124,,,
+2026-11-12 09:21:06,4624,DC01.corp.local,n.sim,CORP,3,10.10.20.34,WS-114,,,
+2026-11-12 09:21:55,4624,DC01.corp.local,m.chan,CORP,3,10.10.20.33,WS-113,,,
+2026-11-12 09:27:49,4624,DC01.corp.local,i.teo,CORP,3,10.10.20.29,WS-109,,,
+2026-11-12 09:28:07,4624,DC01.corp.local,w.loh,CORP,3,10.10.20.43,WS-123,,,
+2026-11-12 09:30:49,4624,DC01.corp.local,helpdesk,CORP,3,10.10.20.54,WS-134,,,
+2026-11-12 09:33:20,4624,DC01.corp.local,a.wong,CORP,3,10.10.20.21,WS-101,,,
+2026-11-12 09:38:05,4624,DC01.corp.local,j.tan,CORP,3,10.10.20.30,WS-110,,,
+2026-11-12 09:41:21,4624,DC01.corp.local,j.tan,CORP,3,10.10.20.30,WS-110,,,
+2026-11-12 09:52:22,4624,DC01.corp.local,z.chia,CORP,3,10.10.20.46,WS-126,,,
+2026-11-12 09:57:34,4624,DC01.corp.local,u.wee,CORP,3,10.10.20.41,WS-121,,,
+2026-11-12 09:59:59,4624,DC01.corp.local,p.foo,CORP,3,10.10.20.36,WS-116,,,
+2026-11-12 10:02:20,4624,DC01.corp.local,t.toh,CORP,3,10.10.20.40,WS-120,,,
+2026-11-12 10:07:02,4624,DC01.corp.local,aa.raj,CORP,3,10.10.20.47,WS-127,,,
+2026-11-12 10:07:17,4625,DC01.corp.local,f.chua,CORP,2,10.10.20.26,WS-106,0xC000006D,0xC000006A,Bad password
+2026-11-12 10:07:22,4624,DC01.corp.local,f.chua,CORP,2,10.10.20.26,WS-106,,,
+2026-11-12 10:14:05,4624,DC01.corp.local,g.ong,CORP,3,10.10.20.27,WS-107,,,
+2026-11-12 10:15:41,4624,DC01.corp.local,r.quek,CORP,3,10.10.20.38,WS-118,,,
+2026-11-12 10:16:21,4624,DC01.corp.local,aa.raj,CORP,3,10.10.20.47,WS-127,,,
+2026-11-12 10:20:46,4624,DC01.corp.local,j.tan,CORP,3,10.10.20.30,WS-110,,,
+2026-11-12 10:27:45,4624,DC01.corp.local,n.sim,CORP,3,10.10.20.34,WS-114,,,
+2026-11-12 10:32:13,4624,DC01.corp.local,k.ho,CORP,3,10.10.20.31,WS-111,,,
+2026-11-12 10:35:23,4625,DC01.corp.local,g.ong,CORP,2,10.10.20.27,WS-107,0xC000006D,0xC000006A,Bad password
+2026-11-12 10:35:28,4624,DC01.corp.local,g.ong,CORP,2,10.10.20.27,WS-107,,,
+2026-11-12 10:37:44,4624,DC01.corp.local,i.teo,CORP,3,10.10.20.29,WS-109,,,
+2026-11-12 10:50:45,4624,DC01.corp.local,u.wee,CORP,3,10.10.20.41,WS-121,,,
+2026-11-12 10:59:15,4624,DC01.corp.local,y.kwek,CORP,3,10.10.20.45,WS-125,,,
+2026-11-12 11:02:42,4624,DC01.corp.local,y.kwek,CORP,3,10.10.20.45,WS-125,,,
+2026-11-12 11:03:24,4624,DC01.corp.local,a.wong,CORP,3,10.10.20.21,WS-101,,,
+2026-11-12 11:08:53,4624,DC01.corp.local,p.foo,CORP,3,10.10.20.36,WS-116,,,
+2026-11-12 11:09:45,4624,DC01.corp.local,v.ang,CORP,3,10.10.20.42,WS-122,,,
+2026-11-12 11:11:18,4624,DC01.corp.local,c.ng,CORP,3,10.10.20.23,WS-103,,,
+2026-11-12 11:14:56,4624,DC01.corp.local,j.tan,CORP,3,10.10.20.30,WS-110,,,
+2026-11-12 11:20:39,4624,DC01.corp.local,z.chia,CORP,3,10.10.20.46,WS-126,,,
+2026-11-12 11:32:26,4625,DC01.corp.local,b.lee,CORP,2,10.10.20.22,WS-102,0xC000006D,0xC000006A,Bad password
+2026-11-12 11:32:32,4624,DC01.corp.local,b.lee,CORP,2,10.10.20.22,WS-102,,,
+2026-11-12 11:33:56,4624,DC01.corp.local,j.tan,CORP,3,10.10.20.30,WS-110,,,
+2026-11-12 11:37:42,4624,DC01.corp.local,i.teo,CORP,3,10.10.20.29,WS-109,,,
+2026-11-12 11:39:34,4624,DC01.corp.local,o.low,CORP,3,10.10.20.35,WS-115,,,
+2026-11-12 11:39:54,4624,DC01.corp.local,z.chia,CORP,3,10.10.20.46,WS-126,,,
+2026-11-12 11:40:17,4624,DC01.corp.local,u.wee,CORP,3,10.10.20.41,WS-121,,,
+2026-11-12 11:41:26,4625,DC01.corp.local,d.koh,CORP,2,10.10.20.24,WS-104,0xC000006D,0xC000006A,Bad password
+2026-11-12 11:41:32,4624,DC01.corp.local,d.koh,CORP,2,10.10.20.24,WS-104,,,
+2026-11-12 11:47:30,4624,DC01.corp.local,q.seah,CORP,3,10.10.20.37,WS-117,,,
+2026-11-12 11:54:20,4624,DC01.corp.local,e.lim,CORP,3,10.10.20.25,WS-105,,,
+2026-11-12 11:55:29,4624,DC01.corp.local,dd.hassan,CORP,3,10.10.20.50,WS-130,,,
+2026-11-12 12:00:47,4624,DC01.corp.local,i.teo,CORP,3,10.10.20.29,WS-109,,,
+2026-11-12 12:04:45,4624,DC01.corp.local,bb.kumar,CORP,3,10.10.20.48,WS-128,,,
+2026-11-12 12:09:34,4624,DC01.corp.local,u.wee,CORP,3,10.10.20.41,WS-121,,,
+2026-11-12 12:09:56,4624,DC01.corp.local,f.chua,CORP,3,10.10.20.26,WS-106,,,
+2026-11-12 12:11:38,4624,DC01.corp.local,g.ong,CORP,3,10.10.20.27,WS-107,,,
+2026-11-12 12:13:06,4624,DC01.corp.local,p.foo,CORP,3,10.10.20.36,WS-116,,,
+2026-11-12 12:13:25,4624,DC01.corp.local,j.tan,CORP,3,10.10.20.30,WS-110,,,
+2026-11-12 12:13:45,4624,DC01.corp.local,j.tan,CORP,3,10.10.20.30,WS-110,,,
+2026-11-12 12:20:24,4624,DC01.corp.local,b.lee,CORP,3,10.10.20.22,WS-102,,,
+2026-11-12 12:21:38,4624,DC01.corp.local,f.chua,CORP,3,10.10.20.26,WS-106,,,
+2026-11-12 12:27:44,4624,DC01.corp.local,helpdesk,CORP,3,10.10.20.54,WS-134,,,
+2026-11-12 12:29:14,4624,DC01.corp.local,f.chua,CORP,3,10.10.20.26,WS-106,,,
+2026-11-12 12:30:54,4624,DC01.corp.local,o.low,CORP,3,10.10.20.35,WS-115,,,
+2026-11-12 12:33:13,4624,DC01.corp.local,e.lim,CORP,3,10.10.20.25,WS-105,,,
+2026-11-12 12:34:17,4624,DC01.corp.local,g.ong,CORP,3,10.10.20.27,WS-107,,,
+2026-11-12 12:35:23,4624,DC01.corp.local,i.teo,CORP,3,10.10.20.29,WS-109,,,
+2026-11-12 12:40:38,4624,DC01.corp.local,l.yeo,CORP,3,10.10.20.32,WS-112,,,
+2026-11-12 12:43:48,4624,DC01.corp.local,r.quek,CORP,3,10.10.20.38,WS-118,,,
+2026-11-12 12:49:50,4624,DC01.corp.local,c.ng,CORP,3,10.10.20.23,WS-103,,,
+2026-11-12 12:51:41,4624,DC01.corp.local,helpdesk,CORP,3,10.10.20.54,WS-134,,,
+2026-11-12 12:53:09,4624,DC01.corp.local,h.goh,CORP,3,10.10.20.28,WS-108,,,
+2026-11-12 12:54:19,4625,DC01.corp.local,k.ho,CORP,2,10.10.20.31,WS-111,0xC000006D,0xC000006A,Bad password
+2026-11-12 12:54:27,4624,DC01.corp.local,k.ho,CORP,2,10.10.20.31,WS-111,,,
+2026-11-12 12:55:35,4624,DC01.corp.local,d.koh,CORP,3,10.10.20.24,WS-104,,,
+2026-11-12 12:55:43,4624,DC01.corp.local,bb.kumar,CORP,3,10.10.20.48,WS-128,,,
+2026-11-12 12:56:16,4624,DC01.corp.local,d.koh,CORP,3,10.10.20.24,WS-104,,,
+2026-11-12 12:58:26,4624,DC01.corp.local,m.chan,CORP,3,10.10.20.33,WS-113,,,
+2026-11-12 13:00:46,4624,DC01.corp.local,e.lim,CORP,3,10.10.20.25,WS-105,,,
+2026-11-12 13:01:11,4624,DC01.corp.local,c.ng,CORP,3,10.10.20.23,WS-103,,,
+2026-11-12 13:03:56,4624,DC01.corp.local,q.seah,CORP,7,10.10.20.37,WS-117,,,
+2026-11-12 13:04:37,4624,DC01.corp.local,g.ong,CORP,3,10.10.20.27,WS-107,,,
+2026-11-12 13:05:38,4624,DC01.corp.local,cc.devi,CORP,3,10.10.20.49,WS-129,,,
+2026-11-12 13:06:16,4624,DC01.corp.local,b.lee,CORP,7,10.10.20.22,WS-102,,,
+2026-11-12 13:09:49,4624,DC01.corp.local,h.goh,CORP,7,10.10.20.28,WS-108,,,
+2026-11-12 13:10:09,4624,DC01.corp.local,m.chan,CORP,3,10.10.20.33,WS-113,,,
+2026-11-12 13:10:23,4624,DC01.corp.local,i.teo,CORP,7,10.10.20.29,WS-109,,,
+2026-11-12 13:13:27,4624,DC01.corp.local,g.ong,CORP,3,10.10.20.27,WS-107,,,
+2026-11-12 13:14:26,4624,DC01.corp.local,m.chan,CORP,7,10.10.20.33,WS-113,,,
+2026-11-12 13:16:30,4624,DC01.corp.local,it.admin,CORP,7,10.10.20.52,WS-132,,,
+2026-11-12 13:16:40,4624,DC01.corp.local,b.lee,CORP,3,10.10.20.22,WS-102,,,
+2026-11-12 13:18:22,4624,DC01.corp.local,w.loh,CORP,7,10.10.20.43,WS-123,,,
+2026-11-12 13:23:16,4624,DC01.corp.local,cc.devi,CORP,3,10.10.20.49,WS-129,,,
+2026-11-12 13:24:34,4624,DC01.corp.local,o.low,CORP,3,10.10.20.35,WS-115,,,
+2026-11-12 13:28:10,4624,DC01.corp.local,d.koh,CORP,3,10.10.20.24,WS-104,,,
+2026-11-12 13:29:48,4624,DC01.corp.local,helpdesk,CORP,3,10.10.20.54,WS-134,,,
+2026-11-12 13:30:21,4624,DC01.corp.local,e.lim,CORP,3,10.10.20.25,WS-105,,,
+2026-11-12 13:30:37,4624,DC01.corp.local,q.seah,CORP,3,10.10.20.37,WS-117,,,
+2026-11-12 13:30:40,4624,DC01.corp.local,h.goh,CORP,3,10.10.20.28,WS-108,,,
+2026-11-12 13:31:37,4624,DC01.corp.local,j.tan,CORP,7,10.10.20.30,WS-110,,,
+2026-11-12 13:31:42,4624,DC01.corp.local,aa.raj,CORP,7,10.10.20.47,WS-127,,,
+2026-11-12 13:33:46,4624,DC01.corp.local,p.foo,CORP,3,10.10.20.36,WS-116,,,
+2026-11-12 13:34:23,4624,DC01.corp.local,h.goh,CORP,3,10.10.20.28,WS-108,,,
+2026-11-12 13:34:29,4624,DC01.corp.local,s.lim,CORP,7,10.10.20.39,WS-119,,,
+2026-11-12 13:39:40,4625,DC01.corp.local,y.kwek,CORP,2,10.10.20.45,WS-125,0xC000006D,0xC000006A,Bad password
+2026-11-12 13:39:46,4624,DC01.corp.local,y.kwek,CORP,2,10.10.20.45,WS-125,,,
+2026-11-12 13:40:17,4624,DC01.corp.local,e.lim,CORP,7,10.10.20.25,WS-105,,,
+2026-11-12 13:40:29,4624,DC01.corp.local,p.foo,CORP,7,10.10.20.36,WS-116,,,
+2026-11-12 13:40:41,4624,DC01.corp.local,d.koh,CORP,3,10.10.20.24,WS-104,,,
+2026-11-12 13:45:23,4624,DC01.corp.local,x.poh,CORP,3,10.10.20.44,WS-124,,,
+2026-11-12 13:46:54,4624,DC01.corp.local,c.ng,CORP,7,10.10.20.23,WS-103,,,
+2026-11-12 13:49:05,4624,DC01.corp.local,d.koh,CORP,3,10.10.20.24,WS-104,,,
+2026-11-12 13:50:45,4624,DC01.corp.local,n.sim,CORP,3,10.10.20.34,WS-114,,,
+2026-11-12 13:52:16,4624,DC01.corp.local,v.ang,CORP,3,10.10.20.42,WS-122,,,
+2026-11-12 13:53:55,4624,DC01.corp.local,o.low,CORP,3,10.10.20.35,WS-115,,,
+2026-11-12 13:56:15,4624,DC01.corp.local,s.lim,CORP,3,10.10.20.39,WS-119,,,
+2026-11-12 13:58:53,4624,DC01.corp.local,u.wee,CORP,3,10.10.20.41,WS-121,,,
+2026-11-12 13:59:02,4624,DC01.corp.local,r.quek,CORP,3,10.10.20.38,WS-118,,,
+2026-11-12 14:04:01,4624,DC01.corp.local,v.ang,CORP,3,10.10.20.42,WS-122,,,
+2026-11-12 14:06:50,4624,DC01.corp.local,dd.hassan,CORP,3,10.10.20.50,WS-130,,,
+2026-11-12 14:13:05,4624,DC01.corp.local,o.low,CORP,3,10.10.20.35,WS-115,,,
+2026-11-12 14:16:01,4624,DC01.corp.local,z.chia,CORP,3,10.10.20.46,WS-126,,,
+2026-11-12 14:23:07,4624,DC01.corp.local,y.kwek,CORP,3,10.10.20.45,WS-125,,,
+2026-11-12 14:27:47,4624,DC01.corp.local,d.koh,CORP,3,10.10.20.24,WS-104,,,
+2026-11-12 14:33:59,4624,DC01.corp.local,it.admin,CORP,3,10.10.20.52,WS-132,,,
+2026-11-12 14:41:26,4624,DC01.corp.local,g.ong,CORP,3,10.10.20.27,WS-107,,,
+2026-11-12 14:44:02,4624,DC01.corp.local,aa.raj,CORP,3,10.10.20.47,WS-127,,,
+2026-11-12 14:45:41,4624,DC01.corp.local,y.kwek,CORP,3,10.10.20.45,WS-125,,,
+2026-11-12 14:50:19,4624,DC01.corp.local,g.ong,CORP,3,10.10.20.27,WS-107,,,
+2026-11-12 14:52:43,4624,DC01.corp.local,f.chua,CORP,3,10.10.20.26,WS-106,,,
+2026-11-12 14:53:53,4624,DC01.corp.local,cc.devi,CORP,3,10.10.20.49,WS-129,,,
+2026-11-12 14:57:45,4624,DC01.corp.local,t.toh,CORP,3,10.10.20.40,WS-120,,,
+2026-11-12 14:59:57,4624,DC01.corp.local,dd.hassan,CORP,3,10.10.20.50,WS-130,,,
+2026-11-12 15:09:39,4624,DC01.corp.local,it.admin,CORP,3,10.10.20.52,WS-132,,,
+2026-11-12 15:09:59,4624,DC01.corp.local,z.chia,CORP,3,10.10.20.46,WS-126,,,
+2026-11-12 15:10:49,4624,DC01.corp.local,a.wong,CORP,3,10.10.20.21,WS-101,,,
+2026-11-12 15:11:30,4624,DC01.corp.local,helpdesk,CORP,3,10.10.20.54,WS-134,,,
+2026-11-12 15:19:37,4624,DC01.corp.local,d.koh,CORP,3,10.10.20.24,WS-104,,,
+2026-11-12 15:20:27,4624,DC01.corp.local,t.toh,CORP,3,10.10.20.40,WS-120,,,
+2026-11-12 15:21:06,4624,DC01.corp.local,n.sim,CORP,3,10.10.20.34,WS-114,,,
+2026-11-12 15:26:01,4624,DC01.corp.local,k.ho,CORP,3,10.10.20.31,WS-111,,,
+2026-11-12 15:32:19,4624,DC01.corp.local,t.toh,CORP,3,10.10.20.40,WS-120,,,
+2026-11-12 15:35:33,4624,DC01.corp.local,cc.devi,CORP,3,10.10.20.49,WS-129,,,
+2026-11-12 15:38:26,4624,DC01.corp.local,q.seah,CORP,3,10.10.20.37,WS-117,,,
+2026-11-12 15:43:01,4624,DC01.corp.local,p.foo,CORP,3,10.10.20.36,WS-116,,,
+2026-11-12 15:46:43,4624,DC01.corp.local,q.seah,CORP,3,10.10.20.37,WS-117,,,
+2026-11-12 15:48:32,4624,DC01.corp.local,e.lim,CORP,3,10.10.20.25,WS-105,,,
+2026-11-12 15:49:04,4624,DC01.corp.local,i.teo,CORP,3,10.10.20.29,WS-109,,,
+2026-11-12 15:53:21,4624,DC01.corp.local,q.seah,CORP,3,10.10.20.37,WS-117,,,
+2026-11-12 15:58:04,4624,DC01.corp.local,y.kwek,CORP,3,10.10.20.45,WS-125,,,
+2026-11-12 16:00:46,4624,DC01.corp.local,o.low,CORP,3,10.10.20.35,WS-115,,,
+2026-11-12 16:04:32,4624,DC01.corp.local,f.chua,CORP,3,10.10.20.26,WS-106,,,
+2026-11-12 16:06:38,4624,DC01.corp.local,y.kwek,CORP,3,10.10.20.45,WS-125,,,
+2026-11-12 16:07:24,4624,DC01.corp.local,y.kwek,CORP,3,10.10.20.45,WS-125,,,
+2026-11-12 16:14:58,4624,DC01.corp.local,dd.hassan,CORP,3,10.10.20.50,WS-130,,,
+2026-11-12 16:17:04,4624,DC01.corp.local,e.lim,CORP,3,10.10.20.25,WS-105,,,
+2026-11-12 16:23:08,4624,DC01.corp.local,r.quek,CORP,3,10.10.20.38,WS-118,,,
+2026-11-12 16:23:39,4624,DC01.corp.local,x.poh,CORP,3,10.10.20.44,WS-124,,,
+2026-11-12 16:25:38,4624,DC01.corp.local,l.yeo,CORP,3,10.10.20.32,WS-112,,,
+2026-11-12 16:26:07,4624,DC01.corp.local,w.loh,CORP,3,10.10.20.43,WS-123,,,
+2026-11-12 16:29:24,4624,DC01.corp.local,w.loh,CORP,3,10.10.20.43,WS-123,,,
+2026-11-12 16:30:27,4624,DC01.corp.local,l.yeo,CORP,3,10.10.20.32,WS-112,,,
+2026-11-12 16:32:51,4624,DC01.corp.local,f.chua,CORP,3,10.10.20.26,WS-106,,,
+2026-11-12 16:36:16,4624,DC01.corp.local,dd.hassan,CORP,3,10.10.20.50,WS-130,,,
+2026-11-12 16:52:44,4624,DC01.corp.local,i.teo,CORP,3,10.10.20.29,WS-109,,,
+2026-11-12 16:53:04,4624,DC01.corp.local,o.low,CORP,3,10.10.20.35,WS-115,,,
+2026-11-12 16:56:20,4624,DC01.corp.local,s.lim,CORP,3,10.10.20.39,WS-119,,,
+2026-11-12 16:59:21,4624,DC01.corp.local,u.wee,CORP,3,10.10.20.41,WS-121,,,
+2026-11-12 17:02:07,4624,DC01.corp.local,t.toh,CORP,3,10.10.20.40,WS-120,,,
+2026-11-12 17:03:41,4624,DC01.corp.local,it.admin,CORP,3,10.10.20.52,WS-132,,,
+2026-11-12 17:18:47,4624,DC01.corp.local,bb.kumar,CORP,3,10.10.20.48,WS-128,,,
+2026-11-12 17:19:14,4624,DC01.corp.local,l.yeo,CORP,3,10.10.20.32,WS-112,,,
+2026-11-12 17:19:38,4624,DC01.corp.local,r.quek,CORP,3,10.10.20.38,WS-118,,,
+2026-11-12 17:20:05,4624,DC01.corp.local,m.chan,CORP,3,10.10.20.33,WS-113,,,
+2026-11-12 17:27:38,4624,DC01.corp.local,k.ho,CORP,3,10.10.20.31,WS-111,,,
+2026-11-12 17:41:04,4624,DC01.corp.local,cc.devi,CORP,3,10.10.20.49,WS-129,,,
+2026-11-12 17:42:14,4624,DC01.corp.local,b.lee,CORP,3,10.10.20.22,WS-102,,,
+2026-11-12 17:57:05,4624,DC01.corp.local,it.admin,CORP,3,10.10.20.52,WS-132,,,
+2026-11-12 18:21:47,4624,DC01.corp.local,cc.devi,CORP,3,10.10.20.49,WS-129,,,
+2026-11-12 21:14:40,4624,DC01.corp.local,it.admin,CORP,10,10.10.99.15,IT-LAPTOP-02,,,
+2026-11-12 23:00:03,4624,DC01.corp.local,svc_backup,CORP,5,-,-,,,`;
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  const cols = lines[0].split(",");
+  return { cols, rows: lines.slice(1).map(l => { const v = l.split(","); const o = {}; cols.forEach((c, i) => o[c] = v[i] ?? ""); return o; }) };
+}
+const { cols, rows } = parseCSV(CSV);
+const SHOW = ["TimeCreated","EventID","TargetUserName","LogonType","SourceIP","WorkstationName","SubStatus","FailureReason"];
+const $ = id => document.getElementById(id);
+let sortCol = "TimeCreated", sortDir = 1, current = rows;
+
+$("head").innerHTML = SHOW.map(c => `<th data-c="${c}">${c}</th>`).join("");
+$("head").addEventListener("click", e => {
+  const c = e.target.dataset.c; if (!c) return;
+  sortDir = (sortCol === c) ? -sortDir : 1; sortCol = c; render();
+});
+
+function filtered() {
+  const ev = $("fEvent").value, ip = $("fIP").value.trim().toLowerCase(), u = $("fUser").value.trim().toLowerCase(),
+        ty = $("fType").value, fr = $("fFrom").value, to = $("fTo").value, any = $("fAny").value.trim().toLowerCase();
+  return rows.filter(r => {
+    const t = r.TimeCreated.slice(11);
+    return (!ev || r.EventID === ev) && (!ip || r.SourceIP.toLowerCase().includes(ip)) &&
+      (!u || r.TargetUserName.toLowerCase().includes(u)) && (!ty || r.LogonType === ty) &&
+      (!fr || t >= (fr.length === 5 ? fr + ":00" : fr)) && (!to || t <= (to.length === 5 ? to + ":59" : to)) &&
+      (!any || Object.values(r).join(" ").toLowerCase().includes(any));
+  });
+}
+
+function group(list, key) {
+  const m = new Map(); list.forEach(r => { const k = r[key] || "(blank)"; m.set(k, (m.get(k) || 0) + 1); });
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function render() {
+  current = filtered().sort((a, b) => {
+    const x = a[sortCol], y = b[sortCol];
+    const nx = Number(x), ny = Number(y);
+    const cmp = (x !== "" && y !== "" && !isNaN(nx) && !isNaN(ny)) ? nx - ny : String(x).localeCompare(String(y));
+    return cmp * sortDir;
+  });
+  $("body").innerHTML = current.map(r => `<tr class="e${r.EventID}">` + SHOW.map(c =>
+    `<td${c === "SourceIP" || c === "TargetUserName" ? ` class="click" data-c="${c}"` : ""}>${esc(r[c])}</td>`).join("") + "</tr>").join("");
+  $("count").textContent = `${current.length} of ${rows.length} events`;
+  [...$("head").children].forEach(th => th.textContent = th.dataset.c + (th.dataset.c === sortCol ? (sortDir > 0 ? " ▲" : " ▼") : ""));
+  $("byIP").innerHTML = group(current, "SourceIP").slice(0, 25).map(([k, n]) => `<tr data-ip="${esc(k)}"><td>${esc(k)}</td><td>${n}</td></tr>`).join("");
+  $("byUser").innerHTML = group(current, "TargetUserName").slice(0, 25).map(([k, n]) => `<tr data-user="${esc(k)}"><td>${esc(k)}</td><td>${n}</td></tr>`).join("");
+}
+
+$("body").addEventListener("click", e => {
+  const td = e.target.closest("td.click"); if (!td) return;
+  if (td.dataset.c === "SourceIP") $("fIP").value = td.textContent; else $("fUser").value = td.textContent;
+  render();
+});
+$("byIP").addEventListener("click", e => { const tr = e.target.closest("tr"); if (tr) { $("fIP").value = tr.dataset.ip === "(blank)" ? "" : tr.dataset.ip; render(); } });
+$("byUser").addEventListener("click", e => { const tr = e.target.closest("tr"); if (tr) { $("fUser").value = tr.dataset.user; render(); } });
+["fEvent","fType","fFrom","fTo"].forEach(id => $(id).addEventListener("change", render));
+["fIP","fUser","fAny"].forEach(id => $(id).addEventListener("input", render));
+$("reset").addEventListener("click", () => { ["fEvent","fIP","fUser","fType","fFrom","fTo","fAny"].forEach(id => $(id).value = ""); sortCol = "TimeCreated"; sortDir = 1; render(); });
+$("export").addEventListener("click", () => {
+  const out = [cols.join(",")].concat(current.map(r => cols.map(c => r[c]).join(","))).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([out], { type: "text/csv" }));
+  a.download = "filtered_logs.csv"; a.click();
+});
+render();
+</script>
+</body>
+</html>
