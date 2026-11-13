@@ -1,0 +1,36 @@
+<!--
+  Lab 4 (OPTIONAL, instructor): custom Wazuh rules for router login events.
+
+  1. Find the rule ID Wazuh already gives a router "LOGIN_FAILED" event, either:
+     a) Dashboard: Threat Hunting > Events > open a LOGIN_FAILED event > read "rule.id", or
+     b) On the Wazuh VM:  sudo /var/ossec/bin/wazuh-logtest
+        then paste this sample line and press Enter:
+        %SEC_LOGIN-4-LOGIN_FAILED: Login failed [user: admin] [Source: 208.8.8.1] [localport: 22] [Reason: Login Authentication Failed] at 10:00:00 UTC Fri Nov 13 2026
+        Under "Phase 3" it prints  id: 'NNNN'
+  2. Replace FAILED_LOGIN_RULE_ID below (2 places) with that number.
+  3. Paste everything from <group ...> to </group> at the end of
+        /var/ossec/etc/rules/local_rules.xml
+  4. Restart:  sudo systemctl restart wazuh-manager
+  5. Test again with wazuh-logtest (paste the sample line 5 times for rule 100410).
+-->
+<group name="lab4,cisco_ios,authentication,">
+
+  <!-- 5 failed router logins within 60 seconds = possible brute force -->
+  <rule id="100410" level="10" frequency="5" timeframe="60">
+    <if_matched_sid>FAILED_LOGIN_RULE_ID</if_matched_sid>
+    <match>LOGIN_FAILED</match>
+    <description>Lab 4: Possible brute force - 5 failed router logins in 60 seconds</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+  </rule>
+
+  <!-- A login username that looks like instructions to an AI (prompt injection) -->
+  <rule id="100411" level="10">
+    <if_sid>FAILED_LOGIN_RULE_ID</if_sid>
+    <match>LOGIN_FAILED</match>
+    <regex type="pcre2">(?i)\[user: [^\]]*(ignore|instruction|benign)</regex>
+    <description>Lab 4: Instruction-like text in a login username (possible AI prompt injection)</description>
+  </rule>
+
+</group>
