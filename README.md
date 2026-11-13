@@ -143,6 +143,19 @@ end
 | No port 514 packets in Wireshark | Capture on **VMnet8**. Backup: on Wazuh run `sudo tcpdump -i any port 514 -A` |
 | Search finds nothing | Try `full_log:*LOGIN_FAILED*` or just `LOGIN_FAILED` |
 | Locked out (Step 6) | Wait 60 seconds |
+| Dashboard stuck on **API Connections / Offline** | Wazuh manager isn't running. On Wazuh: `sudo systemctl status wazuh-manager`. If it says **failed**, see the next row |
+| Wazuh won't start: `Error reading XML file 'etc/ossec.conf' (line 0)` | A typo in `ossec.conf` (often the `<remote>` block). Find the line: see [Find a broken ossec.conf line](#find-a-broken-ossecconf-line) |
+
+### Find a broken ossec.conf line
+```bash
+(echo "<root>"; sudo cat /var/ossec/etc/ossec.conf; echo "</root>") | xmllint --noout - ; echo "done"
+```
+An error like `-:40: … mismatch: allowed-ips … and local_ip` means **line 39** (the number minus 1) is wrong. Open it with `sudo nano +39 /var/ossec/etc/ossec.conf`. Every tag must close with the same name, e.g. `<allowed-ips>208.8.8.0/24</allowed-ips>`. Then:
+```bash
+sudo systemctl restart wazuh-manager
+sudo systemctl restart wazuh-dashboard
+```
+Wait 2 minutes, or restart the PC.
 
 ### Fix the logging IP
 ```
