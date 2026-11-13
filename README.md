@@ -12,7 +12,7 @@ Students act as SOC analysts. They investigate a simulated **password-spraying**
 
 | What | Where |
 |---|---|
-| 🔎 **Browser log viewer** (no install, works on any device) | Open `docs/index.html`, or use the GitHub Pages link in the **About** section of this repo |
+| 🔎 **Browser log viewer** (no install, works on any device) | **https://tsuyoiman.github.io/cybersec-lab4-credential-attack/** (or open `docs/index.html` offline) |
 | 📄 Log file (CSV) | [`data/auth_logs.csv`](data/auth_logs.csv) |
 | 🌐 Network capture | [`data/network_capture.pcap`](data/network_capture.pcap) (open in Wireshark) |
 | 📝 Worksheet | [`docs/student-worksheet.md`](docs/student-worksheet.md) |
