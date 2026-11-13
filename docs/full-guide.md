@@ -1,6 +1,6 @@
 # Lab 4: Full guide (detailed version)
 
-> ↩️ The short step-by-step is in the main [README](../README.md). This file has the full explanations, cheat sheet, custom Wazuh rule and troubleshooting.
+> ↩️ The short step-by-step, **including the Wazuh + router setup (Part 1)**, is in the main [README](../README.md). This file has the full explanations, cheat sheet, custom Wazuh rule and troubleshooting.
 
 **Day 2: Cyber Threats, Attack Investigation & AI Security** · V8 alignment: **2.3, 2.5, 4.8** (+ AI link to **2.6**) · CompTIA **Security+ (SY0-701)**
 
