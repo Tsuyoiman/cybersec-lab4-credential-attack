@@ -25,7 +25,8 @@ You need: **Wazuh VM**, **Router VM**, **SecureCRT**, **Wireshark**.
    ```
    show running-config | include logging host
    ```
-   ✅ It must show **your** Wazuh IP. *(Wrong IP? See [Fix the logging IP](#fix-the-logging-ip).)*
+   ✅ It must show **your** Wazuh IP, **not** the `208.8.8.222` from the setup guide. *(Wrong IP? See [Fix the logging IP](#fix-the-logging-ip).)*
+   > ⚠️ If you see `Router>` and `en` says **"% No password set"**, your account has no admin rights. Do the [router admin fix](#router-admin-fix) first.
 4. In your browser, open **`https://<WAZUH-IP>`** and log in.
 5. Open **Wireshark** → double-click **VMware Network Adapter VMnet8**. Leave it running.
 
@@ -138,7 +139,9 @@ end
 
 | Problem | Fix |
 |---|---|
-| No events in Wazuh | Router must log to **your** Wazuh IP (Step 1.3). Time = **Last 15 minutes** |
+| No events in Wazuh | 1) Router must log to **your** Wazuh IP (Step 1.3), not `.222`. 2) Open the Wazuh firewall: `sudo firewall-cmd --permanent --add-port=514/tcp && sudo firewall-cmd --reload`. 3) Test on Wazuh: `sudo tcpdump -i any port 514 -A`, then type a wrong password: you should see `LOGIN_FAILED` |
+| Dashboard shows login failures, but not from the router | Those are Wazuh's own Linux logins. Look in **Events** and search `LOGIN_FAILED` |
+| Typed a wrong password in the **router's VMware window**, nothing logged | Use **SecureCRT → SSH to 208.8.8.220**. Only remote (SSH) logins are logged |
 | Dashboard won't open | Use `https://`. Wait 2–3 min after boot |
 | No port 514 packets in Wireshark | Capture on **VMnet8**. Backup: on Wazuh run `sudo tcpdump -i any port 514 -A` |
 | Search finds nothing | Try `full_log:*LOGIN_FAILED*` or just `LOGIN_FAILED` |
@@ -158,12 +161,31 @@ sudo systemctl restart wazuh-dashboard
 Wait 2 minutes, or restart the PC.
 
 ### Fix the logging IP
+In the **router's VMware console window**:
 ```
+enable
 configure terminal
 no logging host <OLD-IP>
 logging host <WAZUH-IP> transport tcp port 514
 end
+write memory
+show logging | include Logging to
 ```
+✅ `Logging to <WAZUH-IP> (tcp port 514 …) … link up`
+
+### Router admin fix
+If SSH lands at `Router>` and `en` says "% No password set": in the **router's VMware console window** (here `enable` works without a password):
+```
+enable
+configure terminal
+username admin privilege 15 secret <router-password>
+enable secret <enable-password>
+login on-failure log
+login on-success log
+end
+write memory
+```
+Now SSH logs you straight into `Router#`.
 
 ---
 
