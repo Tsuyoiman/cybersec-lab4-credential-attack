@@ -1,0 +1,10 @@
+# Lab 4 severity colouring rules for Wireshark
+# Import: View > Coloring Rules > Import... > choose this file > OK
+# Rules are checked top to bottom; the first match colours the packet.
+@CRITICAL - Successful logon reply to external IP@smb2.cmd == 1 && smb2.nt_status == 0 && smb2.flags.response == 1 && !(ip.dst == 10.0.0.0/8)@[65535,65535,65535][65535,19789,24158]
+@CRITICAL - Remote Desktop from external IP@tcp.port == 3389 && !(ip.src == 10.0.0.0/8 && ip.dst == 10.0.0.0/8)@[65535,65535,65535][52428,8738,17476]
+@HIGH - Instruction text in username (AI prompt injection)@ntlmssp.auth.username contains "ignore" || ntlmssp.auth.username contains "SYSTEM-NOTE"@[0,0,0][65535,40863,16448]
+@HIGH - Logon failure reply to external IP@smb2.nt_status == 0xc000006d && !(ip.dst == 10.0.0.0/8)@[0,0,0][65535,40863,16448]
+@MEDIUM - Login attempt from external IP@ntlmssp.auth.username && !(ip.src == 10.0.0.0/8)@[0,0,0][65535,54484,15163]
+@LOW - Logon failure (internal)@smb2.nt_status == 0xc000006d@[0,0,0][23130,43433,65535]
+@INFO - DNS lookup@dns@[0,0,0][52685,55255,57825]

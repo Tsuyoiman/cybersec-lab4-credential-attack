@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lab 4 Log Viewer – DC01 Security Log</title>
 <style>
-  :root { --bg:#0f1419; --panel:#161d25; --line:#26313d; --text:#d6dde4; --muted:#8293a3; --accent:#3fa7ff; --bad:#ff6b6b; --good:#4cd97b; --warn:#ffb347; }
+  :root { --bg:#0f1419; --panel:#161d25; --line:#26313d; --text:#d6dde4; --muted:#8293a3; --accent:#3fa7ff; --bad:#ff6b6b; --good:#4cd97b; --warn:#ffb347;
+          --sev-critical:#ff4d5e; --sev-high:#ff9f40; --sev-medium:#ffd43b; --sev-low:#5aa9ff; --sev-info:#7f8c99; }
   * { box-sizing: border-box; }
   body { margin:0; font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
   header { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
@@ -21,19 +22,27 @@
   main { display:grid; grid-template-columns: 1fr 300px; min-height: calc(100vh - 120px); }
   .tablewrap { overflow:auto; max-height: calc(100vh - 125px); }
   table { border-collapse:collapse; width:100%; font-family: ui-monospace, Consolas, monospace; font-size:12.5px; }
-  th { position:sticky; top:0; background:var(--panel); text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); cursor:pointer; white-space:nowrap; user-select:none; }
+  th { position:sticky; top:0; background:var(--panel); text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); cursor:pointer; white-space:nowrap; user-select:none; z-index:1; }
   th:hover { color:var(--accent); }
   td { padding:5px 9px; border-bottom:1px solid #1c252f; white-space:nowrap; }
+  td.user { max-width:220px; overflow:hidden; text-overflow:ellipsis; }
   tr:hover td { background:#1b2430; }
-  tr.e4625 td:nth-child(2) { color:var(--bad); font-weight:600; }
-  tr.e4624 td:nth-child(2) { color:var(--good); font-weight:600; }
-  tr.e4740 td:nth-child(2) { color:var(--warn); font-weight:600; }
+  td.ev4625 { color:var(--bad); font-weight:600; }
+  td.ev4624 { color:var(--good); font-weight:600; }
+  td.ev4740 { color:var(--warn); font-weight:600; }
   td.click { cursor:pointer; text-decoration: underline dotted; }
+  td.det { color:var(--muted); font-family: system-ui, sans-serif; }
+  .sev { display:inline-block; min-width:68px; text-align:center; padding:1px 7px; border-radius:10px; font-family:system-ui,sans-serif; font-size:11.5px; font-weight:700; color:#10151b; }
+  .sev.Critical { background:var(--sev-critical); color:#fff; }
+  .sev.High { background:var(--sev-high); }
+  .sev.Medium { background:var(--sev-medium); }
+  .sev.Low { background:var(--sev-low); }
+  .sev.Info { background:var(--sev-info); color:#fff; }
   aside { border-left:1px solid var(--line); padding:14px 16px; background:var(--panel); overflow:auto; max-height: calc(100vh - 125px); }
   aside h2 { font-size:14px; margin:4px 0 8px; }
   aside p { color:var(--muted); font-size:12px; margin:0 0 10px; }
   .grp { width:100%; border-collapse:collapse; margin-bottom:18px; font-size:12.5px; }
-  .grp td { padding:4px 6px; border-bottom:1px solid var(--line); }
+  .grp td { padding:4px 6px; border-bottom:1px solid var(--line); max-width:200px; overflow:hidden; text-overflow:ellipsis; }
   .grp td:last-child { text-align:right; font-variant-numeric: tabular-nums; }
   .grp tr { cursor:pointer; }
   .legend { font-size:12px; color:var(--muted); line-height:1.7; }
@@ -44,10 +53,20 @@
 <body>
 <header>
   <h1>DC01 Security Log Viewer</h1>
-  <span>Lab 4 · Simulated Credential Attack · corp.local · 12 Nov 2026 (UTC+8)</span>
+  <span>Lab 4 · Simulated Credential Attack · corp.local · 12 Nov 2026 (UTC+8) · Severity assigned by SIEM detection rules</span>
 </header>
 
 <div class="bar">
+  <label>Severity
+    <select id="fSev">
+      <option value="">All</option>
+      <option value="Critical">Critical</option>
+      <option value="High">High</option>
+      <option value="Medium">Medium</option>
+      <option value="Low">Low</option>
+      <option value="Info">Info</option>
+    </select>
+  </label>
   <label>Event ID
     <select id="fEvent">
       <option value="">All</option>
@@ -84,6 +103,9 @@
     </table>
   </div>
   <aside>
+    <h2>Count by Severity</h2>
+    <p>Counts use the current filters. Click a row to filter by it.</p>
+    <table class="grp" id="bySev"></table>
     <h2>Count by Source IP <span id="nIP" style="color:var(--muted);font-weight:400"></span></h2>
     <p>Counts use the current filters. Click a row to filter by it.</p>
     <table class="grp" id="byIP"></table>
@@ -97,7 +119,12 @@
       <b>4740</b> account locked out<br>
       <b>0xC000006A</b> wrong password (user exists)<br>
       <b>0xC0000064</b> user name does not exist<br>
-      <b>Type 2</b> at the keyboard · <b>3</b> over network · <b>10</b> RDP
+      <b>Type 2</b> at the keyboard · <b>3</b> over network · <b>10</b> RDP<br><br>
+      <span class="sev Critical">Critical</span> act now: confirmed compromise<br>
+      <span class="sev High">High</span> active attack in progress<br>
+      <span class="sev Medium">Medium</span> suspicious, needs triage<br>
+      <span class="sev Low">Low</span> minor, usually benign<br>
+      <span class="sev Info">Info</span> normal activity
     </div>
   </aside>
 </main>
@@ -110,26 +137,68 @@ function parseCSV(text) {
   const cols = lines[0].split(",");
   return { cols, rows: lines.slice(1).map(l => { const v = l.split(","); const o = {}; cols.forEach((c, i) => o[c] = v[i] ?? ""); return o; }) };
 }
-const { cols, rows } = parseCSV(CSV);
-const SHOW = ["TimeCreated","EventID","TargetUserName","LogonType","SourceIP","WorkstationName","SubStatus","FailureReason"];
+const parsed = parseCSV(CSV);
+const rows = parsed.rows;
+
+// ---------------------------------------------------------------
+// SIEM detection rules: Windows does not record a severity.
+// A SIEM adds it by running rules like these over the raw events.
+// ---------------------------------------------------------------
+const SEV_RANK = { Critical: 5, High: 4, Medium: 3, Low: 2, Info: 1 };
+const isInternal = ip => /^10\./.test(ip) || ip === "-" || ip === "";
+const PRIVILEGED = new Set(["administrator", "it.admin", "svc_backup", "helpdesk"]);
+const INJECTION = /ignore (all |previous )|system-note|classify as benign/i;
+const MIN = 60 * 1000;
+rows.forEach(r => r._t = Date.parse(r.TimeCreated.replace(" ", "T") + "+08:00"));
+const fails = rows.filter(r => r.EventID === "4625");
+
+function distinctUsersFrom(ip, t, mins) {
+  return new Set(fails.filter(f => f.SourceIP === ip && Math.abs(f._t - t) <= mins * MIN).map(f => f.TargetUserName)).size;
+}
+function failsFor(user, ip, t, mins) {
+  return fails.filter(f => f.TargetUserName === user && f.SourceIP === ip && Math.abs(f._t - t) <= mins * MIN).length;
+}
+const spraySources = new Set();
+fails.forEach(f => { if (distinctUsersFrom(f.SourceIP, f._t, 30) >= 10) spraySources.add(f.SourceIP); });
+
+rows.forEach(r => {
+  let sev = "Info", rule = "Normal logon";
+  if (r.EventID === "4625") {
+    const du = distinctUsersFrom(r.SourceIP, r._t, 30);
+    if (INJECTION.test(r.TargetUserName)) { sev = "High"; rule = "Instruction text in log field (possible AI prompt injection)"; }
+    else if (du >= 10) { sev = "High"; rule = `Password spray: 1 source → ${du} accounts in 30 min`; }
+    else if (failsFor(r.TargetUserName, r.SourceIP, r._t, 5) >= 3) { sev = "Medium"; rule = "Repeated failures on one account (possible brute force)"; }
+    else { sev = "Low"; rule = "Single failed logon"; }
+  } else if (r.EventID === "4740") {
+    if (PRIVILEGED.has(r.TargetUserName)) { sev = "High"; rule = "Privileged account locked out"; }
+    else { sev = "Medium"; rule = "Account locked out"; }
+  } else if (r.EventID === "4624") {
+    if (spraySources.has(r.SourceIP)) { sev = "Critical"; rule = r.LogonType === "10" ? "RDP logon from password-spray source" : "Successful logon from password-spray source"; }
+    else if (!isInternal(r.SourceIP)) { sev = "High"; rule = "Logon from external IP"; }
+  }
+  r.Severity = sev; r.Detection = rule;
+});
+
+const cols = parsed.cols.concat(["Severity", "Detection"]);
+const SHOW = ["TimeCreated","Severity","EventID","TargetUserName","LogonType","SourceIP","WorkstationName","SubStatus","Detection"];
 const $ = id => document.getElementById(id);
 let sortCol = "TimeCreated", sortDir = 1, current = rows;
 
 $("head").innerHTML = SHOW.map(c => `<th data-c="${c}">${c}</th>`).join("");
 $("head").addEventListener("click", e => {
   const c = e.target.dataset.c; if (!c) return;
-  sortDir = (sortCol === c) ? -sortDir : 1; sortCol = c; render();
+  sortDir = (sortCol === c) ? -sortDir : (c === "Severity" ? -1 : 1); sortCol = c; render();
 });
 
 function filtered() {
-  const ev = $("fEvent").value, ip = $("fIP").value.trim().toLowerCase(), u = $("fUser").value.trim().toLowerCase(),
+  const sv = $("fSev").value, ev = $("fEvent").value, ip = $("fIP").value.trim().toLowerCase(), u = $("fUser").value.trim().toLowerCase(),
         ty = $("fType").value, fr = $("fFrom").value, to = $("fTo").value, any = $("fAny").value.trim().toLowerCase();
   return rows.filter(r => {
     const t = r.TimeCreated.slice(11);
-    return (!ev || r.EventID === ev) && (!ip || r.SourceIP.toLowerCase().includes(ip)) &&
+    return (!sv || r.Severity === sv) && (!ev || r.EventID === ev) && (!ip || r.SourceIP.toLowerCase().includes(ip)) &&
       (!u || r.TargetUserName.toLowerCase().includes(u)) && (!ty || r.LogonType === ty) &&
       (!fr || t >= (fr.length === 5 ? fr + ":00" : fr)) && (!to || t <= (to.length === 5 ? to + ":59" : to)) &&
-      (!any || Object.values(r).join(" ").toLowerCase().includes(any));
+      (!any || cols.map(c => r[c]).join(" ").toLowerCase().includes(any));
   });
 }
 
@@ -140,21 +209,35 @@ function group(list, key) {
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
+function cell(r, c) {
+  const v = esc(r[c]);
+  if (c === "Severity") return `<td><span class="sev ${v}">${v}</span></td>`;
+  if (c === "EventID") return `<td class="ev${v}">${v}</td>`;
+  if (c === "Detection") return `<td class="det">${v}</td>`;
+  if (c === "SourceIP") return `<td class="click" data-c="${c}">${v}</td>`;
+  if (c === "TargetUserName") return `<td class="click user" data-c="${c}" title="${v}">${v}</td>`;
+  return `<td>${v}</td>`;
+}
+
 function render() {
   current = filtered().sort((a, b) => {
-    const x = a[sortCol], y = b[sortCol];
-    const nx = Number(x), ny = Number(y);
-    const cmp = (x !== "" && y !== "" && !isNaN(nx) && !isNaN(ny)) ? nx - ny : String(x).localeCompare(String(y));
+    let cmp;
+    if (sortCol === "Severity") cmp = SEV_RANK[a.Severity] - SEV_RANK[b.Severity] || a._t - b._t;
+    else {
+      const x = a[sortCol], y = b[sortCol], nx = Number(x), ny = Number(y);
+      cmp = (x !== "" && y !== "" && !isNaN(nx) && !isNaN(ny)) ? nx - ny : String(x).localeCompare(String(y));
+    }
     return cmp * sortDir;
   });
-  $("body").innerHTML = current.map(r => `<tr class="e${r.EventID}">` + SHOW.map(c =>
-    `<td${c === "SourceIP" || c === "TargetUserName" ? ` class="click" data-c="${c}"` : ""}>${esc(r[c])}</td>`).join("") + "</tr>").join("");
+  $("body").innerHTML = current.map(r => "<tr>" + SHOW.map(c => cell(r, c)).join("") + "</tr>").join("");
   $("count").textContent = `${current.length} of ${rows.length} events`;
   [...$("head").children].forEach(th => th.textContent = th.dataset.c + (th.dataset.c === sortCol ? (sortDir > 0 ? " ▲" : " ▼") : ""));
+  const gSev = group(current, "Severity").sort((a, b) => SEV_RANK[b[0]] - SEV_RANK[a[0]]);
+  $("bySev").innerHTML = gSev.map(([k, n]) => `<tr data-sev="${esc(k)}"><td><span class="sev ${esc(k)}">${esc(k)}</span></td><td>${n}</td></tr>`).join("");
   const gIP = group(current, "SourceIP"), gUser = group(current, "TargetUserName");
   $("nIP").textContent = `(${gIP.length} IPs)`; $("nUser").textContent = `(${gUser.length} users)`;
   $("byIP").innerHTML = gIP.map(([k, n]) => `<tr data-ip="${esc(k)}"><td>${esc(k)}</td><td>${n}</td></tr>`).join("");
-  $("byUser").innerHTML = gUser.map(([k, n]) => `<tr data-user="${esc(k)}"><td>${esc(k)}</td><td>${n}</td></tr>`).join("");
+  $("byUser").innerHTML = gUser.map(([k, n]) => `<tr data-user="${esc(k)}"><td title="${esc(k)}">${esc(k)}</td><td>${n}</td></tr>`).join("");
 }
 
 $("body").addEventListener("click", e => {
@@ -162,11 +245,12 @@ $("body").addEventListener("click", e => {
   if (td.dataset.c === "SourceIP") $("fIP").value = td.textContent; else $("fUser").value = td.textContent;
   render();
 });
+$("bySev").addEventListener("click", e => { const tr = e.target.closest("tr"); if (tr) { $("fSev").value = tr.dataset.sev; render(); } });
 $("byIP").addEventListener("click", e => { const tr = e.target.closest("tr"); if (tr) { $("fIP").value = tr.dataset.ip === "(blank)" ? "" : tr.dataset.ip; render(); } });
 $("byUser").addEventListener("click", e => { const tr = e.target.closest("tr"); if (tr) { $("fUser").value = tr.dataset.user; render(); } });
-["fEvent","fType","fFrom","fTo"].forEach(id => $(id).addEventListener("change", render));
+["fSev","fEvent","fType","fFrom","fTo"].forEach(id => $(id).addEventListener("change", render));
 ["fIP","fUser","fAny"].forEach(id => $(id).addEventListener("input", render));
-$("reset").addEventListener("click", () => { ["fEvent","fIP","fUser","fType","fFrom","fTo","fAny"].forEach(id => $(id).value = ""); sortCol = "TimeCreated"; sortDir = 1; render(); });
+$("reset").addEventListener("click", () => { ["fSev","fEvent","fIP","fUser","fType","fFrom","fTo","fAny"].forEach(id => $(id).value = ""); sortCol = "TimeCreated"; sortDir = 1; render(); });
 $("export").addEventListener("click", () => {
   const out = [cols.join(",")].concat(current.map(r => cols.map(c => r[c]).join(","))).join("\n");
   const a = document.createElement("a");
