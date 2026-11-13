@@ -1,6 +1,9 @@
 # Lab 4 Student Worksheet: Investigate a Simulated Credential Attack
 
-**Names:** ______________________________ **Group:** ______ **Date:** ____________
+> ✍️ **Fill this in online:** **https://tsuyoiman.github.io/cybersec-lab4-credential-attack/worksheet.html**. It saves as you type, and you can download or print your answers.
+> This page is the printable copy of the same questions.
+
+**Names:** .............................. **Group:** .......... **Date:** ............
 
 ## Scenario
 
@@ -18,45 +21,45 @@ Use the browser log viewer, a spreadsheet, or PowerShell.
 
 **A1.** How many events are in the log in total? How many are **failed logons (4625)**?
 
-> Total: ________ Failed (4625): ________
+> Total: .......... Failed (4625): ..........
 
 **A2.** Which **Source IP** has the most failed logons? How many?
 
-> IP: ____________________ Number of failures: ________
+> IP: .................... Number of failures: ..........
 
 **A3.** How many **different usernames** did that IP try?
 
-> ________
+> ..........
 
 **A4.** Look at the `SubStatus` codes from that IP. Some are `0xC000006A` and some are `0xC0000064`. What does each one tell you about what the attacker knew?
 
-> ______________________________________________________________________
+> ......................................................................
 
 **A5.** What is the **time window** of the attack (first and last failure from that IP)?
 
-> From: ____________ To: ____________
+> From: ............ To: ............
 
 **A6.** Is this **brute force** or **password spraying**? Give **two** pieces of evidence.
 
-> Type: ____________________
-> Evidence 1: ______________________________________________________________
-> Evidence 2: ______________________________________________________________
+> Type: ....................<br>
+> Evidence 1: ..............................................................<br>
+> Evidence 2: ..............................................................
 
 **A7.** Did any account **successfully** log on (4624) from the same IP? Which account, at what time, and with which logon type?
 
-> Account: ____________ Time: ____________ Logon type: ____ (meaning: ____________)
+> Account: ............ Time: ............ Logon type: .......... (meaning: ............)
 
 **A8.** Were any accounts **locked out (4740)**? Which ones? What do these accounts have in common?
 
-> ______________________________________________________________________
+> ......................................................................
 
 **A9.** What did the attacker do **after** getting in? (Look at every event from that IP after the successful logon.)
 
-> ______________________________________________________________________
+> ......................................................................
 
 **A10. False positive check.** User `s.lim` has 3 failed logons in a row. Is she part of the attack? Explain using the **time, source IP and logon type**.
 
-> ______________________________________________________________________
+> ......................................................................
 
 ---
 
@@ -66,23 +69,23 @@ Open `network_capture.pcap` in Wireshark. Set **View → Time Display Format →
 
 **B1.** Apply the filter `ntlmssp.auth.username`. Which IP is sending the login attempts? Does it match your answer to A2?
 
-> ______________________________________________________________________
+> ......................................................................
 
 **B2.** Add the **User name** as a column (right-click the field, then **Apply as Column**). Name **three** usernames the attacker tried that you also saw in the log.
 
-> ______________________________________________________________________
+> ......................................................................
 
 **B3.** Find the **one** login that the server accepted. Use the success filter from the cheat sheet. What time is it? Does it match A7?
 
-> ______________________________________________________________________
+> ......................................................................
 
 **B4.** Apply `tcp.port == 3389`. What protocol is this, and which username appears in the `mstshash` cookie? What does this confirm?
 
-> ______________________________________________________________________
+> ......................................................................
 
 **B5.** Why is it useful to find the **same evidence in two different sources** (logs + network)?
 
-> ______________________________________________________________________
+> ......................................................................
 
 ---
 
@@ -118,4 +121,4 @@ List **at least 4** actions. Include at least one **immediate response** and at 
 
 The attacker sent one attempt every 1–3 seconds. Suppose they waited **one hour** between attempts instead. Would the "count failures per IP" method still catch them? Describe a detection rule that would.
 
-> ______________________________________________________________________
+> ......................................................................

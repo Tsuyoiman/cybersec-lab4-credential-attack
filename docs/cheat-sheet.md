@@ -38,7 +38,7 @@
 
 ## 5. Tools: how to filter
 
-### Browser log viewer (`docs/index.html`)
+### Log search page (`docs/index.html`, same data as auth_logs.csv)
 - Choose **Event ID → 4625** to see only failures.
 - Look at **Count by Source IP** on the right. Click an IP to filter by it.
 - Click a column header to sort.

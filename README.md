@@ -11,8 +11,9 @@ Students play SOC analysts. They investigate a simulated **password-spraying** a
 | ⏱ **Duration** | ≈ 75 minutes |
 | 👥 **Class size** | Designed for **22 students → 11 pairs** (or 6–7 groups of 3–4) |
 | 🎯 **Level** | Beginner / Security+ candidates |
-| 🔎 **Online log viewer** | **https://tsuyoiman.github.io/cybersec-lab4-credential-attack/** |
-| 📦 **Download all files** | Green **`<> Code`** button above → **Download ZIP** |
+| 📥 **Get the files** | `git clone https://github.com/Tsuyoiman/cybersec-lab4-credential-attack.git` (or **Code → Download ZIP**) |
+| 🔎 **Log search page** | **https://tsuyoiman.github.io/cybersec-lab4-credential-attack/** (same data as `data/auth_logs.csv`) |
+| ✍️ **Fillable worksheet** | **https://tsuyoiman.github.io/cybersec-lab4-credential-attack/worksheet.html** |
 
 ---
 
@@ -71,9 +72,10 @@ By the end of the lab, students can:
 
 | Tool | Needed? | Notes |
 |---|---|---|
-| Web browser | ✅ Yes | Runs the log viewer. Enough for all of Part A |
+| Web browser | ✅ Yes | Runs the log search page and worksheet. Enough for all of Part A |
+| Git | ❌ Optional | To `git clone` the repo. Without it, use **Download ZIP** |
 | **Wireshark** | ✅ Yes | Free: [wireshark.org/download](https://www.wireshark.org/download.html). Needed for Part B |
-| Excel / Google Sheets / LibreOffice | ❌ Optional | Can open the CSV instead of the viewer. **Excel is NOT required** |
+| Excel / Google Sheets / LibreOffice | ❌ Optional | Can open the CSV instead of the log search page. **Excel is NOT required** |
 | PowerShell | ❌ Optional | Built into Windows. Commands in the [cheat sheet](docs/cheat-sheet.md) |
 | Internet | ❌ Optional | Once the ZIP is downloaded, everything works offline (`docs/index.html`) |
 
@@ -82,10 +84,11 @@ By the end of the lab, students can:
 ## 4. Instructor preparation (before class)
 
 - [ ] **Install Wireshark** on every lab PC. This is the only install
-- [ ] **Test the viewer:** open https://tsuyoiman.github.io/cybersec-lab4-credential-attack/ and check it shows **"326 of 326 events"**
+- [ ] **Test the log search page:** open https://tsuyoiman.github.io/cybersec-lab4-credential-attack/ and check it shows **"326 of 326 events"**
 - [ ] **Test Wireshark:** download the ZIP, open `data/network_capture.pcap`, type `ntlmssp.auth.username` in the filter bar and check that packets appear
-- [ ] **No internet in the lab?** Copy the unzipped folder to each PC or a USB drive. Students double-click `docs/index.html`
-- [ ] **Worksheet:** print [`docs/student-worksheet.md`](docs/student-worksheet.md) (one per pair) or share the link
+- [ ] **No internet in the lab?** Copy the folder to each PC or a USB drive. Students double-click `docs/index.html` (log search) and `docs/worksheet.html` (worksheet)
+- [ ] **Worksheet:** students fill in the online worksheet (link above) and submit the downloaded file. A printable copy is in [`docs/student-worksheet.md`](docs/student-worksheet.md)
+- [ ] **Git (optional):** if lab PCs have Git, students clone the repo. Otherwise they use Download ZIP
 - [ ] **Answer key:** `ANSWER-KEY.md` is kept **outside this public repo** so students can't see it. Get it from the lab owner
 - [ ] Put students into **11 pairs**
 
@@ -95,7 +98,7 @@ By the end of the lab, students can:
 
 | Step | Activity | Who | Time |
 |---|---|---|---|
-| 0 | Set up: open viewer, download ZIP, open Wireshark | Students | 5 min |
+| 0 | Set up: git clone (or Download ZIP), open log search page + worksheet, open Wireshark | Students | 5 min |
 | 1 | Scenario + first guess | Instructor | 5 min |
 | 2 | Teach the evidence (attack types, Event IDs, codes) + demo | Instructor | 10 min |
 | 3 | **Part A:** investigate the logs (A1–A10) | Pairs | 20 min |
@@ -114,12 +117,46 @@ By the end of the lab, students can:
 ### Step 0: Set up (5 min)
 
 👩‍💻 **Students:**
-1. Open the **online log viewer:** https://tsuyoiman.github.io/cybersec-lab4-credential-attack/
-   They should see **DC01 Security Log Viewer** and **"326 of 326 events"** at the top right.
-2. Open this repo, click **`<> Code` → Download ZIP**, then right-click the ZIP and choose **Extract All**.
-3. Open **Wireshark** from the Start menu to confirm it works.
 
-🧑‍🏫 **Instructor:** walk around and make sure every pair has the viewer open and the ZIP **extracted** (not just opened).
+**0.1 Get the lab files: clone the repository (preferred)**
+
+Open a terminal (Windows: **PowerShell** or **Git Bash**) and run:
+
+```bash
+git clone https://github.com/Tsuyoiman/cybersec-lab4-credential-attack.git
+cd cybersec-lab4-credential-attack
+```
+
+**No Git installed?** Download manually instead: on this page click the green **`<> Code`** button → **Download ZIP**, then right-click the ZIP → **Extract All**.
+
+Either way, you now have a folder with:
+
+| File | What it is | Open with |
+|---|---|---|
+| `data/auth_logs.csv` | DC01 Windows Security log (326 events) | Log search page, Google Sheets, LibreOffice, Excel or PowerShell |
+| `data/network_capture.pcap` | Network traffic from the same night | **Wireshark** |
+| `docs/index.html` | **Log search page** (offline copy) | Any browser, double-click |
+| `docs/worksheet.html` | **Fillable worksheet** (offline copy) | Any browser, double-click |
+
+**0.2 Open the log search page**
+
+- Online: **https://tsuyoiman.github.io/cybersec-lab4-credential-attack/**
+- Offline: double-click `docs/index.html` in the folder you just cloned or extracted
+
+> ℹ️ **The log search page shows exactly the same 326 events as `data/auth_logs.csv`.** It's the CSV loaded into a searchable page, like a SIEM, so students can filter, sort and count without Excel. Using the page or the CSV gives the same answers.
+
+You should see **"326 of 326 events"** at the top right.
+
+**0.3 Open the worksheet**
+
+- Online: **https://tsuyoiman.github.io/cybersec-lab4-credential-attack/worksheet.html**
+- Offline: double-click `docs/worksheet.html`
+
+Answers save automatically in the browser. At the end, click **Download my answers** (or **Print / Save as PDF**) and submit the file.
+
+**0.4 Check Wireshark** opens from the Start menu.
+
+🧑‍🏫 **Instructor:** walk around and check every pair has the repo cloned (or the ZIP **extracted**, not just opened), the log search page showing 326 events, and the worksheet open.
 
 ---
 
@@ -165,7 +202,7 @@ Draw both on the board:
 | **0xC000006A** | Wrong password, but **the user exists** |
 | **0xC0000064** | **User name doesn't exist** (the attacker is guessing names) |
 
-🧑‍🏫 **3-minute demo** in the viewer:
+🧑‍🏫 **3-minute demo** in the log search page:
 1. Set **Event ID → 4624**: green rows = success.
 2. Set **Event ID → 4625**: red rows = failure.
 3. Point to the **Count by Source IP** panel on the right: *"This counts events per IP using whatever filter you set."*
@@ -176,9 +213,9 @@ Draw both on the board:
 
 ### Step 3: Part A, investigate the logs (20 min)
 
-👩‍💻 Pairs use the **online log viewer** and answer **A1–A10** on the [worksheet](docs/student-worksheet.md).
+👩‍💻 Pairs use the **log search page** and answer **A1–A10** in the [online worksheet](https://tsuyoiman.github.io/cybersec-lab4-credential-attack/worksheet.html).
 
-| # | Student does this in the viewer | ✍️ Writes down |
+| # | Student does this in the log search page | ✍️ Writes down |
 |---|---|---|
 | **3.1** | No filters, read the counter. Then set **Event ID → 4625** | **A1:** total events, number of failures |
 | **3.2** | Keep 4625. Look at **Count by Source IP** (sorted highest first) | **A2:** top IP and its count. Is it normal compared with #2? |
@@ -210,7 +247,7 @@ Draw both on the board:
 👩‍💻 **Students:**
 
 **4.1 Open the capture**
-1. Wireshark → **File → Open** → `data/network_capture.pcap` (from the extracted ZIP).
+1. Wireshark → **File → Open** → `data/network_capture.pcap` (in the cloned or extracted folder).
 2. **View → Time Display Format → Date and Time of Day** so times match the log.
 
 **4.2 See the login attempts** → ✍️ **B1**
@@ -264,7 +301,7 @@ Draw both on the board:
 
 ### Step 6: Incident report (10 min)
 
-👩‍💻 Pairs copy the [report template](docs/report-template.md) into a Word / Google doc and complete:
+👩‍💻 Pairs copy the [report template](docs/report-template.md) into a Word / Google doc and complete it. Attach the worksheet file they downloaded (**Download my answers**):
 
 1. **Summary**: 2–3 sentences a manager understands
 2. **Attack details**: IP, type, time window, accounts targeted, compromised account
@@ -327,13 +364,15 @@ Grade **reasoning**, not just labels. *"Spraying **because** one IP tried 42 dif
 
 | Problem | Fix |
 |---|---|
-| Viewer page won't load | Open `docs/index.html` from the extracted ZIP (double-click) |
-| Viewer shows 0 events | Click **Reset** |
+| Log search page won't load | Open `docs/index.html` from the cloned or extracted folder (double-click) |
+| `git` is not recognized | Git isn't installed. Use **Code → Download ZIP** instead |
+| Worksheet answers disappeared | They save per browser. Use the same browser, and always click **Download my answers** before leaving |
+| Log search shows 0 events | Click **Reset** |
 | Wireshark: "file not found" | **Extract** the ZIP first, don't just open it |
 | Wireshark: no packets after filter | Check spelling, e.g. `ntlmssp.auth.username` (all lowercase), then press Enter |
 | Wireshark times don't match log | **View → Time Display Format → Date and Time of Day**. Hours may differ by time zone, so compare minutes:seconds |
 | Can't find "User name" in packet details | Apply the 4.2 filter first, select a packet, expand **SMB2 → Security Blob → NTLMSSP** |
-| No Excel | Not needed. Use the online viewer |
+| No Excel | Not needed. Use the log search page |
 
 ---
 
@@ -345,10 +384,11 @@ Grade **reasoning**, not just labels. *"Spraying **because** one IP tried 42 dif
 │   ├── auth_logs.csv          ← DC01 security log export (326 events, 12 Nov 2026, UTC+8)
 │   └── network_capture.pcap   ← matching network traffic (open in Wireshark)
 ├── docs/
-│   ├── index.html             ← browser log viewer (also works offline)
-│   ├── STEP-BY-STEP.md        ← student-only version of the steps
-│   ├── student-worksheet.md   ← questions A1–A10, B1–B5, timeline, recommendations
-│   ├── cheat-sheet.md         ← Event IDs, codes, viewer / spreadsheet / PowerShell / Wireshark tips
+│   ├── index.html             ← log search page (same data as auth_logs.csv; works offline)
+│   ├── worksheet.html         ← fillable worksheet (saves, downloads, prints)
+│   ├── STEP-BY-STEP.md        ← points to the steps in this README
+│   ├── student-worksheet.md   ← printable copy of the worksheet
+│   ├── cheat-sheet.md         ← Event IDs, codes, log search / spreadsheet / PowerShell / Wireshark tips
 │   ├── report-template.md     ← incident report template
 │   └── instructor-guide.md    ← extra teaching notes
 └── tools/
